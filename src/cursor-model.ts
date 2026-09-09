@@ -1,7 +1,7 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-export const CURSOR_PROVIDER = "cursor";
-export const CURSOR_SDK_API = "cursor-sdk";
+export const CURSOR_PROVIDER = "cursor-sdk";
+export const CURSOR_SDK_API = CURSOR_PROVIDER;
 
 export type CursorModelRef =
 	| Pick<NonNullable<ExtensionContext["model"]>, "provider" | "api">

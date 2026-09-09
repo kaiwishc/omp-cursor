@@ -1,7 +1,8 @@
 import { readStoredCredential } from "@earendil-works/pi-coding-agent";
+import { CURSOR_PROVIDER } from "./cursor-model.js";
 
 export const CURSOR_API_KEY_ENV_VAR = "CURSOR_API_KEY";
-const CURSOR_PROVIDER_ID = "cursor";
+const CURSOR_PROVIDER_ID = CURSOR_PROVIDER;
 
 // Non-secret literal sentinel for pi's provider registry. Pi 0.77 treats `$ENV_VAR`
 // values as unconfigured when the env var is absent, which hides fallback models

@@ -6,7 +6,7 @@ export const CURSOR_PI_TOOL_BRIDGE_BUILTINS_ENV = "PI_CURSOR_EXPOSE_BUILTIN_TOOL
 export const CURSOR_PI_TOOL_BRIDGE_CALL_TIMEOUT_MS_ENV = "PI_CURSOR_PI_BRIDGE_CALL_TIMEOUT_MS";
 
 export function resolveCursorPiToolBridgeEnabled(env: Record<string, string | undefined> = process.env): boolean {
-	return parseEnvBoolean(env[CURSOR_PI_TOOL_BRIDGE_ENV], true);
+	return parseEnvBoolean(env[CURSOR_PI_TOOL_BRIDGE_ENV], false);
 }
 
 export function resolveCursorPiToolBridgeBuiltinsEnabled(env: Record<string, string | undefined> = process.env): boolean {

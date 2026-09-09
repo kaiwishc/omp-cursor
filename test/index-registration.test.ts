@@ -226,7 +226,7 @@ describe("extension registration and discovery", () => {
 		expect(pi.registerProvider).toHaveBeenCalledOnce();
 
 		const [call] = pi._registered;
-		expect(call.name).toBe("cursor");
+	expect(call.name).toBe("cursor-sdk");
 		expect(call.config.name).toBe("Cursor");
 		expect(call.config.apiKey).toBe("pi-cursor-sdk-cursor-api-key-placeholder");
 		expect(call.config.api).toBe("cursor-sdk");
@@ -620,7 +620,7 @@ describe("extension registration and discovery", () => {
 			}),
 		);
 
-		expect(getApiKeyForProvider).toHaveBeenCalledWith("cursor");
+		expect(getApiKeyForProvider).toHaveBeenCalledWith("cursor-sdk");
 		expect(mockedDiscover).toHaveBeenNthCalledWith(2, expect.objectContaining({ apiKey: "registry-key", forceRefresh: true }));
 		expect(mockedDiscover).toHaveBeenCalledTimes(2);
 		expect(pi.registerProvider).toHaveBeenCalledTimes(2);

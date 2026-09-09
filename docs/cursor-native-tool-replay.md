@@ -4,7 +4,7 @@ User-facing overview of callable vs display-only tools: [Cursor tool surfaces in
 
 pi-cursor-sdk has two separate pi-facing paths plus Cursor's own local-agent tool surface:
 
-1. **Local pi MCP bridge:** default-on for local Cursor agents. It exposes the current pi session's bridgeable active tools to Cursor through a tokenized `127.0.0.1` MCP endpoint, excluding internal Cursor replay activity names and, by default, overlapping built-in pi tools (`read`, `bash`, `write`, `edit`, `grep`, `find`, `ls`). When Cursor calls one of those MCP tools, pi executes the real pi tool through the normal pi tool path.
+1. **Local pi MCP bridge:** off by default for local Cursor agents. Set `PI_CURSOR_PI_TOOL_BRIDGE=1` to expose the current pi session's bridgeable active tools through a tokenized `127.0.0.1` MCP endpoint, excluding internal Cursor replay activity names and, by default, overlapping built-in pi tools (`read`, `bash`, `write`, `edit`, `grep`, `find`, `ls`). When Cursor calls one of those MCP tools, pi executes the real pi tool through the normal pi tool path.
 2. **Cursor native tool replay:** display-only. It renders completed Cursor SDK tool activity as pi-native-looking cards using recorded Cursor results.
 
 This document is about replay. Replay is not execution and is not the local pi bridge.
@@ -23,20 +23,21 @@ Cursor SDK `plan` mode (`--cursor-mode plan` or `/cursor-mode plan`) can make Cu
 
 ## Local pi bridge summary
 
-The bridge is enabled by default when bridgeable active pi tools exist. Cursor sees bridge-owned MCP names such as `pi__sem_reindex`, while pi history and tool cards use the real pi tool name such as `sem_reindex`. The bridge hides overlapping built-in pi tools by default because Cursor already has native equivalents; extension/custom tools and non-overlapping active tools present in pi's active tool registry normally remain exposed. pi-cursor-sdk also registers `cursor_ask_question` for Cursor models when the bridge is enabled and default-on `PI_CURSOR_ASK_QUESTION` is left on, exposed to Cursor as `pi__cursor_ask_question`, so Cursor can ask the user to choose instead of silently defaulting when the pi UI is available. When pi has visible Agent Skills loaded, pi-cursor-sdk registers `cursor_activate_skill`, exposed as `pi__cursor_activate_skill`, so Cursor can load the full pi `SKILL.md` that corresponds to the current pi skill catalog. The bridge does not call pi tool `execute()` handlers directly; it queues the request, emits a real pi `toolCall`, waits for the matching pi `toolResult`, and resolves the Cursor MCP call back into the same live Cursor SDK run without creating a new `Agent`, unless the run was disposed, aborted, or cancelled.
+The bridge is disabled by default. Set `PI_CURSOR_PI_TOOL_BRIDGE=1` when bridgeable active pi tools should be exposed. Cursor sees bridge-owned MCP names such as `pi__sem_reindex`, while pi history and tool cards use the real pi tool name such as `sem_reindex`. The bridge hides overlapping built-in pi tools by default because Cursor already has native equivalents; extension/custom tools and non-overlapping active tools present in the pi active tool registry are exposed only after the bridge is enabled. pi-cursor-sdk also registers `cursor_ask_question` for Cursor models when the bridge is enabled and the `PI_CURSOR_ASK_QUESTION` control is left on, exposed to Cursor as `pi__cursor_ask_question`, so Cursor can ask the user to choose instead of silently defaulting when the pi UI is available. When pi has visible Agent Skills loaded, the extension exposes `cursor_activate_skill` through the same bridge.
 
 Rollback, timeout, and diagnostics controls:
 
 ```bash
-PI_CURSOR_ASK_QUESTION=0 pi --model cursor/grok-4.6
-PI_CURSOR_PI_TOOL_BRIDGE=0 pi --model cursor/grok-4.6
-PI_CURSOR_EXPOSE_BUILTIN_TOOLS=1 pi --model cursor/grok-4.6
-PI_CURSOR_MCP_TOOL_TIMEOUT_SECONDS=7200 pi --model cursor/grok-4.6
-PI_CURSOR_MCP_TOOL_TIMEOUT_MS=7200000 pi --model cursor/grok-4.6
-PI_CURSOR_PI_BRIDGE_CALL_TIMEOUT_MS=120000 pi --model cursor/grok-4.6
-PI_CURSOR_MCP_CONNECT_TIMEOUT_SECONDS=5 pi --model cursor/grok-4.6
-PI_CURSOR_MCP_CONNECT_TIMEOUT_MS=5000 pi --model cursor/grok-4.6
-PI_CURSOR_PI_TOOL_BRIDGE_DEBUG=1 pi --model cursor/grok-4.6
+PI_CURSOR_PI_TOOL_BRIDGE=1 PI_CURSOR_ASK_QUESTION=0 pi --model cursor-sdk/grok-4.6
+PI_CURSOR_PI_TOOL_BRIDGE=1 pi --model cursor-sdk/grok-4.6
+PI_CURSOR_PI_TOOL_BRIDGE=0 pi --model cursor-sdk/grok-4.6
+PI_CURSOR_EXPOSE_BUILTIN_TOOLS=1 pi --model cursor-sdk/grok-4.6
+PI_CURSOR_MCP_TOOL_TIMEOUT_SECONDS=7200 pi --model cursor-sdk/grok-4.6
+PI_CURSOR_MCP_TOOL_TIMEOUT_MS=7200000 pi --model cursor-sdk/grok-4.6
+PI_CURSOR_PI_BRIDGE_CALL_TIMEOUT_MS=120000 pi --model cursor-sdk/grok-4.6
+PI_CURSOR_MCP_CONNECT_TIMEOUT_SECONDS=5 pi --model cursor-sdk/grok-4.6
+PI_CURSOR_MCP_CONNECT_TIMEOUT_MS=5000 pi --model cursor-sdk/grok-4.6
+PI_CURSOR_PI_TOOL_BRIDGE_DEBUG=1 pi --model cursor-sdk/grok-4.6
 ```
 
 `PI_CURSOR_ASK_QUESTION=0` disables only `cursor_ask_question` / `pi__cursor_ask_question`, leaving the rest of the pi bridge available; it is enabled by default. `PI_CURSOR_PI_TOOL_BRIDGE=0` disables the bridge, including `pi__cursor_ask_question`. `PI_CURSOR_EXPOSE_BUILTIN_TOOLS=1` opts in to exposing overlapping pi tool names that Cursor already has native equivalents for (`read`, `bash`, `write`, `edit`, `grep`, `find`, and `ls`). By default those names are hidden even when pi's Cursor replay wrapper has registered them as extension tools; non-overlapping active built-ins remain bridgeable by default. The installed Cursor SDK uses a 60-second MCP protocol default; pi-cursor-sdk overrides that seam by default with 3600 seconds for MCP `callTool` requests and 10 seconds for verified initialize/listTools requests on first send. Bridged calls also have a local fail-closed deadline capped by the effective MCP tool timeout; lower it with `PI_CURSOR_PI_BRIDGE_CALL_TIMEOUT_MS` to reject stale pending state and abort active pi execution sooner. Unknown MCP protocol timeout stacks keep the SDK default. `PI_CURSOR_PI_TOOL_BRIDGE_DEBUG=1` emits typed, allowlisted, scrubbed single-line JSONL bridge diagnostics to `process.stderr` with prefix `[pi-cursor-sdk:bridge]`; it is off by default, uses run-safe IDs that are not reused in endpoint paths, and does not print endpoint URLs/path components/tokens, raw args/results, file contents, or secrets. Cursor-native tools, Cursor settings, plugins, and configured Cursor MCP servers still come from the Cursor SDK local agent path. Cloud Cursor agents are out of scope for this bridge.
@@ -203,7 +204,7 @@ Native replay wrappers are registered only for tool names not already owned by a
 Disable native replay registration entirely:
 
 ```bash
-PI_CURSOR_NATIVE_TOOL_DISPLAY=0 pi --model cursor/grok-4.6
+PI_CURSOR_NATIVE_TOOL_DISPLAY=0 pi --model cursor-sdk/grok-4.6
 ```
 
 `PI_CURSOR_REGISTER_NATIVE_TOOLS=0` is also accepted as a registration-only opt-out.

@@ -26,6 +26,26 @@ describe("buildCursorPrompt", () => {
 		expect(result.text).toContain("System instructions from pi:");
 		expect(result.text).toContain("You are helpful.");
 	});
+	it("accepts OMP system prompt section arrays", () => {
+		const ctx = {
+			systemPrompt: ["First system section.", "Second system section."],
+			messages: [],
+		} as unknown as Context;
+		const result = buildCursorPrompt(ctx);
+		expect(result.text).toContain("First system section.");
+		expect(result.text).toContain("Second system section.");
+	});
+	it("fingerprints OMP system prompt section arrays", () => {
+		const arrayContext = {
+			systemPrompt: ["First system section.", "Second system section."],
+			messages: [],
+		} as unknown as Context;
+		const stringContext: Context = {
+			systemPrompt: "First system section.\n\nSecond system section.",
+			messages: [],
+		};
+		expect(computeCursorContextFingerprint(arrayContext)).toBe(computeCursorContextFingerprint(stringContext));
+	});
 
 	it("omits pi tool catalogs while preserving local skill catalogs for Cursor-facing system instructions", () => {
 		const ctx: Context = {

@@ -1,4 +1,4 @@
-import type { AssistantMessage } from "@earendil-works/pi-ai";
+import type { AssistantMessage, AssistantMessageEventStream, Context } from "@earendil-works/pi-ai";
 import { cursorLiveRuns } from "./cursor-provider-live-run-drain.js";
 import {
 	classifyCursorRunEmission,
@@ -28,6 +28,7 @@ import type {
 	LocalCursorProviderTurnPrepareResult,
 } from "./cursor-provider-turn-types.js";
 import { applyCursorUsage } from "./cursor-usage-accounting.js";
+import { getFinalAssistantText } from "./cursor-run-final-text.js";
 import { hasUsableText } from "./cursor-record-utils.js";
 import { emitDisplayOnlyTraceBlock } from "./cursor-display-only-trace.js";
 export type CursorTurnTerminalEvent =
@@ -38,6 +39,23 @@ export type CursorTurnTerminalEvent =
 			displayOnlyTraceBlock?: string;
 	  }
 	| { kind: "error"; prepared: CursorProviderTurnPrepareResult | undefined; error: unknown };
+
+
+function emitOmpYieldTool(stream: AssistantMessageEventStream, partial: AssistantMessage, finalText: string): void {
+	const contentIndex = partial.content.length;
+	const toolCall = {
+		type: "toolCall" as const,
+		id: `cursor-task-yield-${partial.timestamp}-${contentIndex}`,
+		name: "yield",
+		arguments: { data: finalText },
+	};
+	partial.content.push(toolCall);
+	stream.push({ type: "toolcall_start", contentIndex, partial });
+	stream.push({ type: "toolcall_delta", contentIndex, delta: JSON.stringify(toolCall.arguments), partial });
+	stream.push({ type: "toolcall_end", contentIndex, toolCall, partial });
+	partial.stopReason = "toolUse";
+	stream.push({ type: "done", reason: "toolUse", message: partial });
+}
 
 function applyLiveRunOutcome(
 	outcome: CursorRunOutcome,
@@ -178,11 +196,11 @@ export class CursorRunFinalizer {
 				await prepared.lifecycle.abandon();
 				this.pushTerminalError(partial, "error", outcome.kind === "error" ? outcome.errorMessage : "Cursor SDK run failed.");
 				break;
-			case "finished":
+			case "finished": {
 				prepared.lifecycle.commitSend(context, prepared.meta.bootstrap);
-				prepared.runtime.turnCoordinator.flushText(
-					outcome.kind === "finished" && hasUsableText(outcome.finalText) ? [outcome.finalText] : [],
-				);
+				const finalText = outcome.kind === "finished" && hasUsableText(outcome.finalText) ? outcome.finalText : "";
+				const yieldText = finalText || getFinalAssistantText(partial);
+				prepared.runtime.turnCoordinator.flushText(finalText ? [finalText] : []);
 				applyCursorUsage(partial, model, context, prepared.meta.promptInputTokens, {
 					runtime: prepared.runtimeTarget,
 					turn: prepared.runtime.turnCoordinator.lastSdkTurnUsage,
@@ -190,8 +208,13 @@ export class CursorRunFinalizer {
 				});
 				if (prepared.meta.resumeNotice) emitDisplayOnlyTraceBlock(stream, partial, prepared.meta.resumeNotice);
 				if (displayOnlyTraceBlock) emitDisplayOnlyTraceBlock(stream, partial, displayOnlyTraceBlock);
-				stream.push({ type: "done", reason: "stop", message: partial });
+				if (context.tools?.some((tool) => tool.name === "yield") === true) {
+					emitOmpYieldTool(stream, partial, yieldText);
+				} else {
+					stream.push({ type: "done", reason: "stop", message: partial });
+				}
 				break;
+			}
 		}
 	}
 

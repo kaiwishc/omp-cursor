@@ -26,27 +26,31 @@ Pi CLI tool toggles apply at the pi tool-registry boundary. `--no-tools`, `--too
 Default behavior:
 
 - Cursor host tools handle files, shell, grep, and edits.
+- The pi bridge is off by default. Set `PI_CURSOR_PI_TOOL_BRIDGE=1` to expose bridgeable active pi tools.
 - When exposed, `pi__mcp` is preferred for MCP work and `pi__subagent` is preferred for delegation. Cursor-configured MCP and Cursor-native subagents are fallbacks when the matching pi tool is not exposed or is unavailable.
-- The pi bridge exposes **active pi tools** as `pi__*` MCP names when `PI_CURSOR_PI_TOOL_BRIDGE` is enabled (default on).
+- The pi bridge exposes **active pi tools** as `pi__*` MCP names when `PI_CURSOR_PI_TOOL_BRIDGE=1`.
 - Overlapping pi builtins (`read`, `bash`, `write`, `edit`, `grep`, `find`, `ls`) are **hidden** from the bridge unless `PI_CURSOR_EXPOSE_BUILTIN_TOOLS=1`.
 
 `pi-cursor-sdk` registers `cursor_ask_question` for Cursor models when the bridge is on and `PI_CURSOR_ASK_QUESTION` is enabled (the default); Cursor sees `pi__cursor_ask_question`. The tool is sequential and emits `pi-cursor-sdk:ask-question:blocked` `{ active }` while awaiting UI input. Set `PI_CURSOR_ASK_QUESTION=0` to remove only this tool while preserving the rest of the bridge. Pending bridged calls use a local deadline capped by the effective MCP tool timeout; `PI_CURSOR_PI_BRIDGE_CALL_TIMEOUT_MS` can lower it. When pi has visible Agent Skills loaded, the extension also rewrites pi's skill catalog for Cursor and activates `cursor_activate_skill`; Cursor sees `pi__cursor_activate_skill` and should call it with a listed skill name before applying that skill. The activation result returns the full `SKILL.md`, the skill directory for relative paths, and a bounded list of bundled `scripts/`, `references/`, and `assets/` files without eagerly reading those resources.
 
 ```bash
 # Disable only Cursor's interactive question tool
-PI_CURSOR_ASK_QUESTION=0 pi --model cursor/grok-4.6
+PI_CURSOR_PI_TOOL_BRIDGE=1 PI_CURSOR_ASK_QUESTION=0 pi --model cursor-sdk/grok-4.6
 
-# Disable pi bridge entirely
-PI_CURSOR_PI_TOOL_BRIDGE=0 pi --model cursor/grok-4.6
+# Enable the pi bridge explicitly
+PI_CURSOR_PI_TOOL_BRIDGE=1 pi --model cursor-sdk/grok-4.6
+
+# Disable pi bridge explicitly
+PI_CURSOR_PI_TOOL_BRIDGE=0 pi --model cursor-sdk/grok-4.6
 
 # Expose overlapping pi builtins through the bridge
-PI_CURSOR_EXPOSE_BUILTIN_TOOLS=1 pi --model cursor/grok-4.6
+PI_CURSOR_EXPOSE_BUILTIN_TOOLS=1 pi --model cursor-sdk/grok-4.6
 
 # Fail a stranded bridge call sooner than the effective MCP tool timeout
-PI_CURSOR_PI_BRIDGE_CALL_TIMEOUT_MS=120000 pi --model cursor/grok-4.6
+PI_CURSOR_PI_BRIDGE_CALL_TIMEOUT_MS=120000 pi --model cursor-sdk/grok-4.6
 
 # Disable bootstrap tool manifest
-PI_CURSOR_TOOL_MANIFEST=0 pi --model cursor/grok-4.6
+PI_CURSOR_TOOL_MANIFEST=0 pi --model cursor-sdk/grok-4.6
 ```
 
 ## Runtime and transport policy

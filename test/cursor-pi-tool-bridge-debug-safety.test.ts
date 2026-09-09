@@ -22,7 +22,7 @@ describe("cursor pi tool bridge debug safety", () => {
 	it("settles bridge calls when raw debug recording throws", async () => {
 		const registry = __testUtils.createRegistry(
 			createBridgePiHarness({ active: ["read"], tools: [createTestToolInfo("read", Type.Object({}))] }),
-			{ PI_CURSOR_EXPOSE_BUILTIN_TOOLS: "1" },
+			{ PI_CURSOR_PI_TOOL_BRIDGE: "1", PI_CURSOR_EXPOSE_BUILTIN_TOOLS: "1" },
 		);
 		const recordBridgeRaw = vi.fn(() => { throw new Error("debug failed"); });
 		const debugRecorder: CursorSdkEventDebugRecorder = {

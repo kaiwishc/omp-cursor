@@ -23,6 +23,7 @@
   "homepage": "https://github.com/fitchmultz/pi-cursor-sdk#readme",
   "files": [
     "dist",
+    "agents/cursor.md",
     "shared",
     "src",
     "scripts/build.mjs",

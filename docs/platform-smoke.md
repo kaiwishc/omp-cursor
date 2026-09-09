@@ -12,10 +12,11 @@ Crabbox best-practice baseline applied from `~/Projects/crabbox`: Crabbox owns l
 
 ## Decision
 
-Crabbox is the required local platform smoke runner for `pi-cursor-sdk` releases that touch Cursor provider/runtime behavior. PRs that touch actual cloud runtime execution must also run `npm run smoke:cloud`.
+Crabbox is the required local platform smoke runner for `pi-cursor-sdk` releases and release-ready changes that touch Cursor provider/runtime behavior. PRs that touch actual cloud runtime execution must also run `npm run smoke:cloud`.
 
-Inner-loop checks remain useful, but they are not release gates:
+Routine OMP adaptation commits use the repository's verification lanes instead of this cross-platform release gate.
 
+Routine verification commands remain useful for adaptation work, but they are not release gates:
 ```bash
 npm run verify
 npm pack --dry-run

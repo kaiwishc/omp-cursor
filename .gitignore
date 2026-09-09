@@ -6,6 +6,7 @@ coverage/
 .env.*
 *.tgz
 .pi/
+.omp/
 demos/
 recording/
 demo-script.md
@@ -32,3 +33,14 @@ dogfood-output/
 
 # Crabbox local lease metadata (do not commit)
 .crabbox/
+
+# OS metadata (do not commit)
+.DS_Store
+._*
+.AppleDouble
+.LSOverride
+Icon?
+ehthumbs.db
+Thumbs.db
+.Spotlight-V100/
+.Trashes/

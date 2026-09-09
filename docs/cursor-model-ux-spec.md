@@ -17,17 +17,17 @@ Current implementation notes:
 - Image payload forwarding sends images only from the latest user message. If the latest user turn is plain text after an earlier image turn, the transcript keeps an `[image omitted from transcript]` placeholder but no image bytes are sent to Cursor. The prompt explicitly tells Cursor that prior image bytes are unavailable and to ask the user to reattach or describe a prior image when needed. Carrying images forward across turns remains a future product decision because it affects token cost, privacy, stale visual context, and expected multimodal follow-up behavior.
 - Exact `@cursor/sdk@1.0.27` is a package dependency of this extension; users should not need a global SDK install. Pi 0.84.0 is the minimum supported and current validation baseline, while optional published Pi core peer dependencies use `"*"` ranges per current Pi package guidance.
 - After each finished SDK run, the provider calls `agent.getUsage()` (no `runId` on local agents; `runId` only for cloud `run-*` IDs) and maps billed spend into pi `usage` spend fields. Occupancy `totalTokens` uses only in-window local turn-ended occupancy below the latest compaction `tokensBefore`; billed rows never become occupancy, so footer/auto-compact stay aligned with the post-compact Cursor prompt.
-- Startup discovery does not duplicate Pi CLI parsing: it uses stored `~/.pi/agent/auth.json` API-key auth from `/login`, then `CURSOR_API_KEY`, otherwise it registers the bundled fallback catalog. Provider turns keep Pi's resolved `options.apiKey`. `/cursor-refresh-models` and `/cursor-cloud` mutations resolve provider `cursor` through the command context's Pi ModelRegistry, then normalize placeholders through `CURSOR_API_KEY`. The extension config file stores only non-secret Cursor-only state such as fast defaults and the user-level local HTTP transport preference.
+- Startup discovery does not duplicate Pi CLI parsing: it uses stored `~/.pi/agent/auth.json` API-key auth for provider `cursor-sdk` from `/login`, then `CURSOR_API_KEY`, otherwise it registers the bundled fallback catalog. Provider turns keep Pi's resolved `options.apiKey`. `/cursor-refresh-models` and `/cursor-cloud` mutations resolve provider `cursor-sdk` through the command context's Pi ModelRegistry, then normalize placeholders through `CURSOR_API_KEY`. The extension config file stores only non-secret Cursor-only state such as fast defaults and the user-level local HTTP transport preference.
 - Cursor Cloud repository overrides accept only HTTPS repository URLs without userinfo, query parameters, or fragments. Invalid values fail during preflight before `Agent.create()`, messages never echo the supplied URL, and shared provider/maintainer scrubbing removes URL/SCP-style userinfo defensively.
 - Cursor Cloud requires a persisted pi session. Immediately after remote `Agent.create()` returns, before debug work or abort checks, the provider appends a branch-local pi lifecycle entry, fsyncs the existing Pi session JSONL anchor through a read-write descriptor, and then fsyncs a newline-framed sidecar keyed by the stable pi session ID (POSIX mode `0600`; Windows inherits the user session directory ACL) in the session directory. Journal creation is exclusive, and existing append/read opens reject symlinks and require matching regular-file descriptor/path identity before using the descriptor. Existing session files use the exact lifecycle entry ID as anchor; fileless first turns use an orphan marker that a same-session-ID restart durably claims onto exactly one matching or replacement branch, surviving the timestamped path change and later JSONL creation without granting sibling access; returned run IDs are fsynced before abort/wait handling, readers skip malformed/truncated lines independently, and branch-only history events are reduced after deduplicated sidecar history, and tombstones are tracked before records exist. A durable sidecar result remains authoritative if its optional Pi mirror append fails; if the sidecar result itself fails, the prior durable intent remains pending and blocks retry rather than claiming success. `--no-session` and durable-ledger failures fail closed before send, while post-send ledger failure requests bounded cancellation. `/cursor-cloud` always validates the embedded session ID, accepts only null anchors while truly fileless, and reconciles each orphan to one branch before listing or mutation. Successive record events merge run/branch metadata monotonically even when mirrored sources arrive out of order. Archive/delete require resolved Cursor auth, fsync a durable intent before the SDK call, and fsync a durable success result afterward; unresolved intent blocks repeat mutation and requires dashboard inspection.
 - Local agents pass `settingSources: ["all"]` by default so Cursor MCP servers, plugin tools, project/user settings, and related Cursor-native capabilities are available. Users can narrow loading with a comma-separated list such as `PI_CURSOR_SETTING_SOURCES=project,user,plugins`, or disable ambient setting sources with `PI_CURSOR_SETTING_SOURCES=none`. `/cursor-refresh-config` calls the current pooled SDK agent's `agent.reload()` to refresh filesystem Cursor config without recreating the agent. The provider suppresses direct Cursor SDK bootstrap stdout/stderr/console noise (including late first-send workspace loading such as hook compatibility warnings) so it does not pollute pi's TUI.
-- On `cursor/*` models, pi-cursor-sdk removes only pi-generated `<project_instructions>` blocks that overlap the effective Cursor `settingSources`: `user` for `~/.pi/agent/AGENTS.md`; `project` for discovered repo/parent `AGENTS.md` and `CLAUDE.md` (verified Cursor behavior: local agents load project `AGENTS.md` and `CLAUDE.md`). `~/.pi/agent/CLAUDE.md` is not removed (Cursor user layer uses `~/.claude/CLAUDE.md`). Blocks are removed by exact pi serialization match from structured `contextFiles` via the `before_agent_start` hook, not in `buildCursorPrompt` sanitization. Suppression is skipped with `-nc`, `PI_CURSOR_SETTING_SOURCES=none`, narrowed sources such as `plugins` that omit the matching layer, or `PI_CURSOR_PRESERVE_PI_AGENTS_MD=1`. Switching away from a Cursor model restores pi's full context block on the next user message.
+- On `cursor-sdk/*` models, pi-cursor-sdk removes only pi-generated `<project_instructions>` blocks that overlap the effective Cursor `settingSources`: `user` for `~/.pi/agent/AGENTS.md`; `project` for discovered repo/parent `AGENTS.md` and `CLAUDE.md` (verified Cursor behavior: local agents load project `AGENTS.md` and `CLAUDE.md`). `~/.pi/agent/CLAUDE.md` is not removed (Cursor user layer uses `~/.claude/CLAUDE.md`). Blocks are removed by exact pi serialization match from structured `contextFiles` via the `before_agent_start` hook, not in `buildCursorPrompt` sanitization. Suppression is skipped with `-nc`, `PI_CURSOR_SETTING_SOURCES=none`, narrowed sources such as `plugins` that omit the matching layer, or `PI_CURSOR_PRESERVE_PI_AGENTS_MD=1`. Switching away from Cursor models restores the Pi context.
 - Cursor SDK models are treated as thinking-capable even when pi reports `thinking=no`; that pi column only means the SDK did not expose a pi-controllable thinking parameter for that model.
 - Cursor-side thinking remains visible through pi's native thinking rendering when the Cursor SDK emits thinking or summary deltas.
-- Local Cursor agents get two tool surfaces. First, Cursor keeps the Cursor SDK local-agent tool surface plus configured Cursor settings, plugins, and Cursor MCP servers. Second, pi-cursor-sdk exposes active pi tools through a default-on, tokenized loopback MCP bridge when bridgeable tools exist.
+- Local Cursor agents get two tool surfaces. First, Cursor keeps the Cursor SDK local-agent tool surface plus configured Cursor settings, plugins, and Cursor MCP servers. Second, pi-cursor-sdk can expose active pi tools through a tokenized loopback MCP bridge, but the bridge is off by default and requires `PI_CURSOR_PI_TOOL_BRIDGE=1`.
 - `buildCursorPiToolBridgeSnapshot()` is the runtime capability source for pi bridge tools. It snapshots `pi.getActiveTools()` and `pi.getAllTools()`, carries pi 0.77+ per-tool `promptGuidelines` into bridge MCP descriptions, filters internal replay names, hides overlapping built-in pi tools (`read`, `bash`, `write`, `edit`, `grep`, `find`, `ls`) unless `PI_CURSOR_EXPOSE_BUILTIN_TOOLS=1`, and creates collision-safe MCP names such as `pi__sem_reindex`. Cursor discovers the current run's exposed bridge tools through MCP `listTools`. Bootstrap prompts include a compact callable-surface manifest from `buildCursorToolManifestText()` by default (`PI_CURSOR_TOOL_MANIFEST=1`); disable with `PI_CURSOR_TOOL_MANIFEST=0`. There is no per-turn visible tool list, status manifest, or footer manifest. User-facing summary: [Cursor tool surfaces in pi](./cursor-tool-surfaces.md).
 - Prompt text is the primary provider/bridge contract. Bootstrap prompts carry a short boundary block plus the callable-surface manifest by default (`PI_CURSOR_TOOL_MANIFEST=1`). MCP `listTools` descriptions use a one-line pointer to the bootstrap prompt instead of repeating the full contract (`buildCursorPiBridgeMcpToolDescription()`). Cursor must call the exposed `pi__*` MCP name, not the real pi tool name shown in pi history or transcripts. When exposed, `pi__mcp` takes preference over Cursor-configured MCP for MCP work and `pi__subagent` takes preference over Cursor-native subagents for delegation; the Cursor-native surfaces remain fallbacks when the matching pi bridge tool is absent or unavailable. Pi emits and executes the real pi tool name. Maintainer debug: `/cursor-tools` prints bridge/manifest enablement, effective `PI_CURSOR_SETTING_SOURCES`, and the current callable-surface snapshot.
-- The provider also registers `cursor_ask_question` for Cursor models when the bridge and default-on `PI_CURSOR_ASK_QUESTION` control are enabled. While the tool awaits pi UI input it emits package event `pi-cursor-sdk:ask-question:blocked` with `{ active: true }` and clears `{ active: false }` in `finally`; the tool runs with `executionMode: "sequential"` so parallel sibling calls cannot overlap dialogs. Cursor sees it as `pi__cursor_ask_question`, and pi executes it through the normal tool path so interactive users can choose options from pi UI. `PI_CURSOR_ASK_QUESTION=0` removes only this tool while preserving the rest of the bridge. In non-UI modes it reports that UI is unavailable so Cursor can state a default assumption instead. When pi has visible Agent Skills loaded, the provider rewrites the skill catalog for Cursor and registers `cursor_activate_skill` as `pi__cursor_activate_skill`; pi executes it through the normal tool path so Cursor can load the full `SKILL.md` and skill resource list for the current pi-loaded skill source of truth. `PI_CURSOR_PI_TOOL_BRIDGE=0` disables the local bridge, including question and skill activation bridging. Cloud Cursor agents remain out of scope for the bridge.
+- The provider also registers `cursor_ask_question` for Cursor models when the bridge is enabled and the `PI_CURSOR_ASK_QUESTION` control is enabled by default. While the tool awaits pi UI input it emits package event `pi-cursor-sdk:ask-question:blocked` with `{ active: true }` and clears `{ active: false }` in `finally`; the tool runs with `executionMode: "sequential"` so parallel sibling calls cannot overlap dialogs. Cursor sees it as `pi__cursor_ask_question`, and pi executes it through the normal tool path so interactive users can choose options from pi UI. `PI_CURSOR_ASK_QUESTION=0` removes only this tool while preserving the rest of an enabled bridge. In non-UI modes it reports that UI is unavailable so Cursor can state a default assumption instead. When pi has visible Agent Skills loaded, the extension exposes `cursor_activate_skill` through the same bridge.
 - The bridge queues MCP calls, emits provider `toolcall_*` events, waits for matching pi `toolResult` messages by `toolCallId`, resolves the result back into the same live Cursor SDK run without creating a new `Agent`, and never calls tool `execute()` handlers directly. The same-run resume invariant holds unless the run was disposed, aborted, or cancelled.
 - Cursor SDK MCP tool calls use a guarded timeout override because installed `@cursor/sdk` 1.0.27 still has a 60-second MCP request default with no public per-server timeout option. The extension extends the verified Cursor SDK MCP `callTool` timeout path to 3600 seconds by default and shortens the verified first-send MCP initialize/listTools timeout paths to 10 seconds by default so unavailable configured MCP servers do not block the first reply for a full minute; unknown MCP protocol timeout stacks keep the SDK default. Users can override tool-call timeouts with `PI_CURSOR_MCP_TOOL_TIMEOUT_MS` or `PI_CURSOR_MCP_TOOL_TIMEOUT_SECONDS`, and initialize/listTools timeouts with `PI_CURSOR_MCP_CONNECT_TIMEOUT_MS` or `PI_CURSOR_MCP_CONNECT_TIMEOUT_SECONDS`. Bridged `CallTool` waits also have a local fail-closed deadline that defaults to and cannot exceed the effective MCP tool timeout; `PI_CURSOR_PI_BRIDGE_CALL_TIMEOUT_MS` can lower it, expiry or MCP cancellation aborts active pi execution when available, and expired bridge events are dropped before pi tool emission.
 - Cursor SDK local safety controls are off by default. `--cursor-auto-review` / `PI_CURSOR_AUTO_REVIEW` and `--cursor-sandbox` / `PI_CURSOR_SANDBOX` pass only explicit enabled values into `Agent.create({ local })`; user or trusted project config can set `local.autoReview` and `local.sandboxOptions.enabled`; project config is active only when Pi's project-trust flow reached the extension and approved the project or the run used explicit `--approve`, and project saves require the same immutable trust provenance rather than creating Pi trust resources automatically. Pi 0.84.0 loads `pi install -l` project-local extensions after the trust event, so those installs require `--approve` on every run that reads or writes `.pi/cursor-sdk.json`. Explicit runtime, fast-default, and HTTP transport saves preserve unrecognized config fields, reject malformed or non-object JSON without rewriting it, and use one lock-protected read-modify-write path; fast saves mutate only the selected model key. Because Pi can mutate its in-memory session branch before a journal append throws, a completed global save is authoritative and the command reports the partial journal failure instead of attempting an ambiguous rollback; the new global value stays authoritative over stale branch entries until a later successful save or session restart.
@@ -39,7 +39,7 @@ Current implementation notes:
 - Local Cursor SDK usage events are used when the SDK reports them before the corresponding pi turn is emitted and the reported counts fit the selected pi model window. For each safe local SDK-attributed assistant turn, `usage.input`, `usage.output`, `usage.cacheRead`, and `usage.cacheWrite` come from the latest per-turn raw `turn-ended.usage` (not SDK `toTokenUsage`): observed local runtime keeps `inputTokens` as the full prompt with cache fields as a partition, even though published SDK `TokenUsage.totalTokens` sums all four fields. Pi maps that raw local shape to disjoint components (`input = inputTokens - cacheReadTokens - cacheWriteTokens`) and `usage.totalTokens = inputTokens + outputTokens` for occupancy/compaction only when that total is below the latest compaction `tokensBefore`; otherwise occupancy uses the post-compaction estimate floor. Cloud billed `getUsage()` rows map to spend fields only and never become occupancy. Approximate fallback never reports less occupancy than the last compatible same-model in-window assistant measurement in context. Cumulative `RunResult.usage` is never used for per-message occupancy. If the local SDK reports no usage in time, or reports full-agent-context-sized usage outside the selected model window, the provider falls back to local `input/output` activity estimates while setting `usage.totalTokens` to the current replayable context estimate so footer/compaction context does not collapse after split tool turns; after a split live-run turn times out waiting for SDK usage, later SDK usage for that live run is ignored rather than risk applying stale usage to the wrong pi turn. Cursor SDK cost is unavailable, so cost remains absent/zero. `src/cursor-usage-accounting.ts` owns this policy.
 - Audit observation, 2026-05-19, superseded by the 2026-05-21 replay pass and #68 incomplete visibility, then narrowed by the 2026-05-26 fast-local suppression: a missing-file read with Composer 2.5 emitted `tool-call-started` for Cursor `read`, then streamed final text `Error: File not found`, but did not emit `tool-call-completed` or an `onStep` `toolCall` error result. Leftover external/side-effectful started calls are surfaced at run completion through the same native replay routing as completed tools (activity cards when allowed, otherwise inactive/transcript traces), while fast local discovery starts are debug-only after a successful text-producing run. Cursor-reported completed/step errors remain visible.
 - Maintainer visual verification for replay-card changes should follow [Cursor Native Tool Visual Audit Workflow](./cursor-native-tool-visual-audit.md): offscreen PTY-driven pi run, xterm.js/Playwright screenshot rendering, and JSONL inspection before accepting commits or PRs.
-- Cursor provider/runtime releases must pass the local [Platform Smoke Gate](./platform-smoke.md): `npm run smoke:platform:all`. Cloud-runtime changes must also pass `npm run smoke:cloud`. Use [Cursor Live Smoke Checklist](./cursor-live-smoke-checklist.md) only for focused inner-loop/debug runs with real `pi --approve -e . --cursor-no-fast --model cursor/grok-4.6` invocations, manual observation, temporary session dirs, diagnostics scans, and persisted JSONL inspection. See [Cursor testing lessons](./cursor-testing-lessons.md) for auth.json seeding, isolated smoke harnesses, and replay JSONL scans.
+- Cursor provider/runtime releases must pass the local [Platform Smoke Gate](./platform-smoke.md): `npm run smoke:platform:all`. Cloud-runtime changes must also pass `npm run smoke:cloud`. Use [Cursor Live Smoke Checklist](./cursor-live-smoke-checklist.md) only for focused inner-loop/debug runs with real `pi --approve -e . --cursor-no-fast --model cursor-sdk/grok-4.6` invocations, manual observation, temporary session dirs, diagnostics scans, and persisted JSONL inspection. See [Cursor testing lessons](./cursor-testing-lessons.md) for auth.json seeding, isolated smoke harnesses, and replay JSONL scans.
 - For models without a catalog `context` parameter, context windows are not hardcoded. The extension ships a bundled SDK-derived default/non-Max cache generated from `createAgentPlatform().checkpointStore.loadLatest(agentId).tokenDetails.maxTokens`. Successful runs can update a local override cache, but model discovery does not probe models at startup.
 - Max Mode context windows are distinct from default/non-Max context windows. `@cursor/sdk` 1.0.27 documentation says the SDK may enable Max Mode automatically when a selected model requires it, but the public local-agent `ModelSelection` path still does not expose a manual Max Mode selector. Do not advertise Max Mode context windows unless the SDK catalog exposes an exact parameter/variant or the SDK public API adds a Max Mode selector that the extension actually sends.
 - The installed `@cursor/sdk` exposes latest-style `ModelListItem.aliases`. The extension registers only unambiguous aliases as pi model IDs (with the same context suffixes when applicable) and sends the alias back in `ModelSelection.id`. Cursor-only fast preferences are keyed by the selected SDK model ID/alias, with read fallback for older preferences keyed by the underlying catalog `id`. Aliases shared by multiple base models, such as generic family aliases, are skipped because the pi row metadata would otherwise imply one base model while Cursor may resolve the alias to another.
@@ -72,7 +72,7 @@ Not building now:
 - generic pi model-parameter system for all providers
 - full custom footer replacement
 - independent Claude `thinking` toggle separate from pi thinking
-- multi-parameter CLI suffixes such as `--model cursor/gpt-5.5:medium:272k:fast`
+- multi-parameter CLI suffixes such as `--model cursor-sdk/gpt-5.5:medium:272k:fast`
 
 ## Source of Truth
 
@@ -86,10 +86,10 @@ Cursor.models.list({ apiKey });
 
 Startup discovery resolves `apiKey` in this order:
 
-1. Stored pi auth for provider `cursor` from `readStoredCredential("cursor")`, accepting only an `api_key` credential.
+1. Stored pi auth for provider `cursor-sdk` from `readStoredCredential("cursor-sdk")`, accepting only an `api_key` credential.
 2. `CURSOR_API_KEY`.
 
-Startup never parses `process.argv`; Pi remains the sole owner of CLI model/provider/key parsing. Provider turns keep Pi's resolved `options.apiKey`. Users can persist the stored key through `/login` -> `Use an API key` -> `Cursor`. If auth is added after startup, fallback models can run once Pi resolves the saved key for provider requests, and `/cursor-refresh-models` asks the command context's ModelRegistry for provider `cursor` and passes that normalized key explicitly to a forced live refresh.
+Startup never parses `process.argv`; Pi remains the sole owner of CLI model/provider/key parsing. Provider turns keep Pi's resolved `options.apiKey`. Users can persist the stored key through `/login` -> `Use an API key` -> `Cursor`. If auth is added after startup, fallback models can run once Pi resolves the saved key for provider requests, and `/cursor-refresh-models` asks the command context's ModelRegistry for provider `cursor-sdk` and passes that normalized key explicitly to a forced live refresh.
 
 For each model, use:
 
@@ -177,24 +177,24 @@ Rules:
 Recommended context-variant ID format:
 
 ```text
-cursor/gpt-5.5@1m
-cursor/gpt-5.5@272k
-cursor/claude-opus-4-8@1m
-cursor/claude-opus-4-8@300k
-cursor/composer-2-5
-cursor/composer-2-5:fast
-cursor/composer-2-5:slow
-cursor/grok-4.6
-cursor/grok-4.6:fast
-cursor/grok-4.6:slow
-cursor/gpt-5.5@1m:fast
+cursor-sdk/gpt-5.5@1m
+cursor-sdk/gpt-5.5@272k
+cursor-sdk/claude-opus-4-8@1m
+cursor-sdk/claude-opus-4-8@300k
+cursor-sdk/composer-2-5
+cursor-sdk/composer-2-5:fast
+cursor-sdk/composer-2-5:slow
+cursor-sdk/grok-4.6
+cursor-sdk/grok-4.6:fast
+cursor-sdk/grok-4.6:slow
+cursor-sdk/gpt-5.5@1m:fast
 ```
 
 Avoid colon-based context IDs in the first implementation unless this spec is intentionally changed:
 
 ```text
-cursor/gpt-5.5:1m
-cursor/gpt-5.5:1m:medium
+cursor-sdk/gpt-5.5:1m
+cursor-sdk/gpt-5.5:1m:medium
 ```
 
 Those can work technically because pi parses only the final `:<thinking>` suffix, but they overload pi's documented thinking shorthand.
@@ -202,8 +202,8 @@ Those can work technically because pi parses only the final `:<thinking>` suffix
 Avoid this old parameter encoding:
 
 ```text
-cursor/gpt-5.5:context=1m;fast=false;reasoning=medium
-cursor/claude-opus-4-8:context=1m;effort=xhigh;thinking=true
+cursor-sdk/gpt-5.5:context=1m;fast=false;reasoning=medium
+cursor-sdk/claude-opus-4-8:context=1m;effort=xhigh;thinking=true
 ```
 
 Reason:
@@ -354,11 +354,11 @@ If a Cursor model supports `context`, register one pi model variant per context 
 Examples:
 
 ```text
-cursor/gpt-5.5@272k
-cursor/gpt-5.5@1m
+cursor-sdk/gpt-5.5@272k
+cursor-sdk/gpt-5.5@1m
 
-cursor/claude-opus-4-8@300k
-cursor/claude-opus-4-8@1m
+cursor-sdk/claude-opus-4-8@300k
+cursor-sdk/claude-opus-4-8@1m
 ```
 
 Each variant must:
@@ -504,9 +504,9 @@ Use:
 Use Cursor default variants:
 
 ```text
-gpt-5.5 -> cursor/gpt-5.5@1m, thinking medium, fast=false
-composer-2.5 -> cursor/composer-2-5, fast=true
-grok-4.6 -> cursor/grok-4.6, fast=true
+gpt-5.5 -> cursor-sdk/gpt-5.5@1m, thinking medium, fast=false
+composer-2.5 -> cursor-sdk/composer-2-5, fast=true
+grok-4.6 -> cursor-sdk/grok-4.6, fast=true
 ```
 
 ### Resume Session
@@ -531,10 +531,10 @@ Use:
 Guaranteed first-pass support:
 
 ```bash
-pi --model cursor/gpt-5.5@1m --thinking medium
-pi --model cursor/gpt-5.5@1m --cursor-mode plan
-pi --model cursor/gpt-5.5@1m:medium
-pi --model cursor/gpt-5.5@272k:xhigh
+pi --model cursor-sdk/gpt-5.5@1m --thinking medium
+pi --model cursor-sdk/gpt-5.5@1m --cursor-mode plan
+pi --model cursor-sdk/gpt-5.5@1m:medium
+pi --model cursor-sdk/gpt-5.5@272k:xhigh
 ```
 
 These use pi's native thinking parser. `--thinking` wins over a `:<thinking>` suffix when both are present.
@@ -542,7 +542,7 @@ These use pi's native thinking parser. `--thinking` wins over a `:<thinking>` su
 Not first-pass support:
 
 ```bash
-pi --model cursor/gpt-5.5:medium:272k:fast
+cursor-sdk/gpt-5.5:medium:272k:fast
 ```
 
 Reason:
@@ -564,7 +564,7 @@ For print mode:
 Fast flag example:
 
 ```bash
-pi --model cursor/gpt-5.5@1m --cursor-fast -p "Say ok only"
+pi --model cursor-sdk/gpt-5.5@1m --cursor-fast -p "Say ok only"
 ```
 
 ## Discovered Model Capability Examples
@@ -591,7 +591,7 @@ If Cursor later adds `fast`, `context`, `reasoning`, `effort`, or aliases to a m
 Initial Cursor default for Composer 2.5:
 
 ```text
-pi model: cursor/composer-2-5
+pi model: cursor-sdk/composer-2-5
 Cursor params: fast=true
 pi thinking: off
 Cursor status: cursor:local · fast:on
@@ -611,7 +611,7 @@ Cursor status: cursor:local · fast:off
 Initial Cursor default:
 
 ```text
-pi model: cursor/gpt-5.5@1m
+pi model: cursor-sdk/gpt-5.5@1m
 Cursor params: context=1m; reasoning=medium; fast=false
 pi thinking: medium
 Cursor status: cursor:local · fast:off
@@ -620,7 +620,7 @@ Cursor status: cursor:local · fast:off
 After selecting the 272k variant:
 
 ```text
-pi model: cursor/gpt-5.5@272k
+pi model: cursor-sdk/gpt-5.5@272k
 Cursor params: context=272k; reasoning=medium; fast=false
 pi contextWindow: 272000
 ```
@@ -644,7 +644,7 @@ Cursor params: context=272k; reasoning=extra-high; fast=true
 Initial Cursor default:
 
 ```text
-pi model: cursor/gpt-5.3-codex
+pi model: cursor-sdk/gpt-5.3-codex
 Cursor params: reasoning=high; fast=true
 pi thinking: high
 Cursor status: cursor:local · fast:on
@@ -664,7 +664,7 @@ No context variant.
 Initial Cursor default:
 
 ```text
-pi model: cursor/claude-opus-4-8@1m
+pi model: cursor-sdk/claude-opus-4-8@1m
 Cursor params: thinking=true; context=1m; effort=xhigh
 pi thinking: xhigh
 ```
@@ -672,7 +672,7 @@ pi thinking: xhigh
 After selecting the 300k variant:
 
 ```text
-pi model: cursor/claude-opus-4-8@300k
+pi model: cursor-sdk/claude-opus-4-8@300k
 Cursor params: thinking=true; context=300k; effort=xhigh
 pi contextWindow: 300000
 ```
@@ -696,7 +696,7 @@ Cursor params: thinking=false; context=300k
 Supports `effort=low|medium|high` and `fast=false|true`; it does not advertise context variants.
 
 ```text
-cursor/grok-4.5
+cursor-sdk/grok-4.5
 ```
 
 Fast toggle maps to the Cursor `fast` parameter.
@@ -708,9 +708,9 @@ Fast toggle maps to the Cursor `fast` parameter.
 Supports `effort=low|medium|high|xhigh` and `fast=false|true`; it does not advertise context variants. The Cursor default variant is `effort=high` and `fast=true`.
 
 ```text
-cursor/grok-4.6
-cursor/grok-4.6:fast
-cursor/grok-4.6:slow
+cursor-sdk/grok-4.6
+cursor-sdk/grok-4.6:fast
+cursor-sdk/grok-4.6:slow
 ```
 
 Fast toggle maps to the Cursor `fast` parameter. `--cursor-no-fast` and `:slow` send `fast=false`.
@@ -737,7 +737,7 @@ Before calling done:
    - unsupported no-op notifications
 
 2. Runtime checks:
-   - `pi --list-models cursor`
+   - `pi --list-models cursor-sdk`
    - confirm context variants show expected `context` column
    - launch interactive with Cursor
    - verify default pi footer remains unchanged
@@ -751,11 +751,11 @@ Before calling done:
    - verify resume restores model, thinking, and Cursor-only state
 
 3. Print mode:
-   - `pi --model cursor/gpt-5.5@1m:medium -p "Say ok only"`
-   - `pi --model cursor/gpt-5.5@272k --thinking xhigh -p "Say ok only"`
-   - `pi --model cursor/claude-opus-4-7@1m --thinking max -p "Say ok only"`
-   - `pi --model cursor/gpt-5.5@1m --cursor-fast -p "Say ok only"`
-   - `pi --model cursor/gpt-5.5@1m --cursor-mode plan -p "Say ok only"`
+   - `pi --model cursor-sdk/gpt-5.5@1m:medium -p "Say ok only"`
+   - `pi --model cursor-sdk/gpt-5.5@272k --thinking xhigh -p "Say ok only"`
+   - `pi --model cursor-sdk/claude-opus-4-7@1m --thinking max -p "Say ok only"`
+   - `pi --model cursor-sdk/gpt-5.5@1m --cursor-fast -p "Say ok only"`
+   - `pi --model cursor-sdk/gpt-5.5@1m --cursor-mode plan -p "Say ok only"`
    - confirm requests use selected context, pi thinking, fast flag state, and SDK-native mode
 
 4. Tool bridge and replay:

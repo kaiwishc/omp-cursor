@@ -10,6 +10,7 @@ import { registerCursorSessionAgentLifecycle } from "./cursor-session-agent-life
 import { registerCursorSessionAgentLineage } from "./cursor-session-agent-lineage.js";
 import { registerCursorSessionAgentResume } from "./cursor-session-agent-resume.js";
 import { streamCursorLazy } from "./cursor-provider-lazy.js";
+import { CURSOR_PROVIDER } from "./cursor-model.js";
 import { CURSOR_API_KEY_CONFIG_VALUE, resolveCursorApiKey } from "./cursor-api-key.js";
 import { registerCursorFallbackIssueWarning } from "./cursor-fallback-warning.js";
 import { registerCursorAgentsContextDedup } from "./cursor-agents-context-registration.js";
@@ -45,7 +46,7 @@ function createCursorProviderConfig(models: ProviderModelConfig[]): ProviderConf
 }
 
 function registerCursorProvider(pi: Pick<ExtensionAPI, "registerProvider">, models: ProviderModelConfig[]): void {
-	pi.registerProvider("cursor", createCursorProviderConfig(models));
+	pi.registerProvider(CURSOR_PROVIDER, createCursorProviderConfig(models));
 }
 
 export default async function (pi: CursorExtensionApi) {
@@ -79,7 +80,7 @@ export default async function (pi: CursorExtensionApi) {
 		description: "Refresh the live Cursor model catalog without restarting pi",
 		handler: async (_args, ctx) => {
 			let refreshFallbackIssue: CursorModelFallbackIssue | undefined;
-			const apiKey = resolveCursorApiKey(await ctx.modelRegistry.getApiKeyForProvider("cursor"));
+			const apiKey = resolveCursorApiKey(await ctx.modelRegistry.getApiKeyForProvider(CURSOR_PROVIDER));
 			const refreshedModels = await discoverModels({
 				apiKey,
 				forceRefresh: true,

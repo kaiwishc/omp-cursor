@@ -33,7 +33,7 @@ function register(items: ModelListItem[]) {
 function writeStoredCursorApiKey(apiKey: string): void {
 	writeFileSync(
 		join(process.env.PI_CODING_AGENT_DIR!, "auth.json"),
-		JSON.stringify({ cursor: { type: "api_key", key: apiKey } }, null, 2),
+		JSON.stringify({ "cursor-sdk": { type: "api_key", key: apiKey } }, null, 2),
 	);
 }
 

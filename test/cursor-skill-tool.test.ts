@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { BeforeAgentStartEvent, ExtensionContext, Skill } from "@earendil-works/pi-coding-agent";
 import {
 	CURSOR_ACTIVATE_SKILL_MCP_NAME,
@@ -20,7 +20,12 @@ import {
 	makeModel,
 } from "./helpers/pi-harness.js";
 
+beforeEach(() => {
+	process.env.PI_CURSOR_PI_TOOL_BRIDGE = "1";
+});
+
 afterEach(() => {
+	delete process.env.PI_CURSOR_PI_TOOL_BRIDGE;
 	delete process.env.PI_CURSOR_RUNTIME;
 });
 

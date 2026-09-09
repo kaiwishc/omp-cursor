@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
+import { createAssistantMessageEventStream, type Context } from "@earendil-works/pi-ai";
 import type { LocalAgentStore, SDKAgent } from "@cursor/sdk";
 import { buildIncompleteCursorToolRunOutcome } from "../src/cursor-incomplete-tool-visibility.js";
 import { CursorRunFinalizer } from "../src/cursor-provider-run-finalizer.js";
@@ -245,8 +245,8 @@ describe("CursorRunFinalizer", () => {
 
 	it("does not reclassify a completed direct turn when debug cleanup fails", async () => {
 		const stream = createAssistantMessageEventStream();
-		const partial = makeAssistantMessage("");
-		const context = makeContext();
+		const partial = makeAssistantMessage("ok");
+		const context = { ...makeContext(), tools: [{ name: "yield" }] } as unknown as Context;
 		const model = makeModel();
 		const sdkProcessErrorGuard = installCursorSdkProcessErrorGuard();
 		const turnCoordinator = new CursorSdkTurnCoordinator({
@@ -330,7 +330,7 @@ describe("CursorRunFinalizer", () => {
 					durationMs: 1,
 					model: { id: "composer-2.5" },
 				},
-				finalText: "ok",
+				finalText: "",
 				incompleteTools: buildIncompleteCursorToolRunOutcome({ status: "finished", assistantTextProduced: true }),
 				assistantTextProduced: true,
 			},
@@ -340,6 +340,12 @@ describe("CursorRunFinalizer", () => {
 		stream.end();
 		const events = await collectAssistantEvents(stream);
 		expect(events.filter((event) => event.type === "done")).toHaveLength(1);
+		expect(events.some((event) => event.type === "done" && event.reason === "toolUse")).toBe(true);
+		expect(partial.content.at(-1)).toMatchObject({
+			type: "toolCall",
+			name: "yield",
+			arguments: { data: "ok" },
+		});
 		expect(events.some((event) => event.type === "error")).toBe(false);
 	});
 });

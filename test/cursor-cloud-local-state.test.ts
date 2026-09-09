@@ -219,11 +219,17 @@ describe("Cursor cloud local state", () => {
 		["empty userinfo with delimiter", "https://:@github.com/example/repo.git"],
 	])("rejects malformed local remote identity with %s", (_label, remoteUrl) => {
 		initTrackedRepo(root, remoteUrl);
+		const runner: CursorCloudGitRunner = (_label === "trailing carriage return")
+			? (cwd, args) => {
+				const output = runCursorCloudGit(cwd, args);
+				return args[0] === "remote" && args.includes("get-url") && output !== undefined ? `${output}\r` : output;
+			}
+			: runCursorCloudGit;
 
 		expect(inspectCursorCloudLocalState(root, {
 			repo: "https://github.com/example/repo.git",
 			branch: "main",
-		})).toMatchObject({ comparison: "unknown", reasons: [{ code: "unverified_target" }] });
+		}, runner)).toMatchObject({ comparison: "unknown", reasons: [{ code: "unverified_target" }] });
 	});
 
 	it.each([

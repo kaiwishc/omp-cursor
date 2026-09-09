@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { Type } from "typebox";
@@ -24,7 +24,12 @@ async function waitForQueuedRequest(run: CursorPiToolBridgeRun) {
 }
 
 describe("cursor pi tool bridge CallTool deadline", () => {
+	beforeEach(() => {
+		process.env.PI_CURSOR_PI_TOOL_BRIDGE = "1";
+	});
+
 	afterEach(async () => {
+		delete process.env.PI_CURSOR_PI_TOOL_BRIDGE;
 		delete process.env.PI_CURSOR_EXPOSE_BUILTIN_TOOLS;
 		delete process.env.PI_CURSOR_PI_BRIDGE_CALL_TIMEOUT_MS;
 		await __testUtils.resetRegisteredBridgeForTests();

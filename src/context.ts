@@ -135,6 +135,12 @@ function formatToolCall(toolCall: ToolCall): string {
 	return `Tool call (${getCursorReplayPromptLabel(toolCall.name)}, call ${toolCall.id}): ${args}`;
 }
 
+function normalizeSystemPromptForCursor(systemPrompt: unknown): string {
+	if (typeof systemPrompt === "string") return systemPrompt;
+	if (!Array.isArray(systemPrompt)) return "";
+	return systemPrompt.filter((section): section is string => typeof section === "string").join("\n\n");
+}
+
 function sanitizeSystemPromptForCursor(systemPrompt: string): string {
 	let sanitized = systemPrompt;
 	sanitized = sanitized.replace(
@@ -337,7 +343,7 @@ function parseCursorContextFingerprint(fingerprint: string): CursorContextFinger
 
 export function computeCursorContextFingerprint(context: Context): string {
 	const payload: CursorContextFingerprintPayload = {
-		systemHash: hashCursorContextValue(context.systemPrompt ?? ""),
+		systemHash: hashCursorContextValue(normalizeSystemPromptForCursor(context.systemPrompt)),
 		messageHashes: context.messages.map((message, index) => serializeRawPiMessageForFingerprint(message, index)),
 	};
 	return JSON.stringify(payload);
@@ -412,8 +418,9 @@ export function buildCursorPrompt(context: Context, options: CursorPromptOptions
 		sectionsBeforeMessages.push(options.toolManifest);
 	}
 
-	if (context.systemPrompt) {
-		sectionsBeforeMessages.push(`System instructions from pi:\n${sanitizeSystemPromptForCursor(context.systemPrompt)}`);
+	const systemPrompt = normalizeSystemPromptForCursor(context.systemPrompt);
+	if (systemPrompt) {
+		sectionsBeforeMessages.push(`System instructions from pi:\n${sanitizeSystemPromptForCursor(systemPrompt)}`);
 	}
 
 	const messages = normalizePiContextMessages(context.messages);
