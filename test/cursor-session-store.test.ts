@@ -14,9 +14,9 @@ import {
 describe("cursor session store identity", () => {
 	it("derives a stable session root below the SDK workspace state root", () => {
 		const scopeKey = "/tmp/sessions/example.jsonl";
-		expect(hashCursorSessionStoreScope(scopeKey)).toBe("9983782212ce97faa33c17445f21670d");
+		expect(hashCursorSessionStoreScope(scopeKey)).toBe("ff751fa0a8cfd9d77e38617c3e041762");
 		expect(buildCursorSessionStateRoot("/sdk/workspace", scopeKey, true)).toBe(
-			join("/sdk/workspace", "pi-sessions", "9983782212ce97faa33c17445f21670d"),
+			join("/sdk/workspace", "omp-sessions", "ff751fa0a8cfd9d77e38617c3e041762"),
 		);
 	});
 
@@ -27,8 +27,8 @@ describe("cursor session store identity", () => {
 
 		expect(first).not.toBe(second);
 		expect(anonymous).not.toBe(buildCursorSessionStateRoot("/sdk/workspace", "__anonymous__", false));
-		expect(anonymous).toContain(join(tmpdir(), "pi-cursor-sdk-"));
-		expect(anonymous).toContain("pi-sessions");
+		expect(anonymous).toContain(join(tmpdir(), "omp-cursor-"));
+		expect(anonymous).toContain("omp-sessions");
 	});
 
 	it("never resumes a fileless acquisition from the shared default store", async () => {

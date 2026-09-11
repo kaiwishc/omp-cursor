@@ -35,7 +35,7 @@ import {
 
 const agentId = "bc-00000000-0000-0000-0000-000000000099";
 const ownershipToken = "11111111-2222-4333-8444-555555555555";
-const ownedFullName = `owner/pi-cursor-cloud-smoke-${ownershipToken}`;
+const ownedFullName = `owner/omp-cursor-cloud-smoke-${ownershipToken}`;
 const ownedDescription = cloudSmokeRepositoryDescription(ownershipToken);
 const ownedRepo = {
 	fullName: ownedFullName,
@@ -95,11 +95,11 @@ describe("cloud smoke helper contracts", () => {
 		expect(() => deleteThrowawayRepository(
 			{ fullName: "owner/repo", ownershipToken: "not-a-uuid", description: "nope" },
 			{ runCommand: () => "", spawnSync: () => ({ status: 0, stdout: "", stderr: "" }) as never },
-		)).toThrow(/ownership token|pi-cursor-cloud-smoke/);
+		)).toThrow(/ownership token|omp-cursor-cloud-smoke/);
 		expect(() => deleteThrowawayRepository(
 			{ fullName: "owner/pre-existing-repo", ownershipToken, description: ownedDescription },
 			{ runCommand: () => "", spawnSync: () => ({ status: 0, stdout: "", stderr: "" }) as never },
-		)).toThrow(/pi-cursor-cloud-smoke/);
+		)).toThrow(/omp-cursor-cloud-smoke/);
 
 		const deletedCommands: string[] = [];
 		expect(deleteThrowawayRepository(ownedRepo, {
@@ -407,7 +407,7 @@ describe("cloud smoke helper contracts", () => {
 			{ name: "passive-artifacts-and-raw-usage", status: "passed", artifactsObserved: true, rawUsageObserved: true, observationsValidated: true },
 		];
 		const summary = projectCloudSmokeMatrixEvidence({
-			model: "cursor/grok-4.6",
+			model: "cursor-sdk/default",
 			timestamp: "2026-07-19T00:00:00.000Z",
 			provenance,
 			cleanup: [

@@ -2,23 +2,23 @@
 
 > **Platform Smoke (new):** The required cross-platform release gate includes a deterministic visual card matrix across all targets. See [docs/platform-smoke.md](./platform-smoke.md) for the required cards, assertion contract, and platform-matrix budget.
 
-This workflow is the canonical repo path for verifying Cursor SDK tool replay the way a human sees it in pi's interactive TUI, without stealing macOS focus.
+This workflow is the canonical repo path for verifying Cursor SDK tool replay the way a human sees it in OMP's interactive TUI, without stealing macOS focus.
 
 Use it before accepting replay-card commits or PRs, and for every Cursor provider/runtime release where TUI card/color behavior could regress. Text logs and JSONL are necessary, but they are not enough when the claim is visual parity: always keep PNGs for the exact prompt, and keep before/after PNGs when reviewing a rendering change.
 
-Current validation baseline: Pi 0.84.0 or later, exact `@cursor/sdk@1.0.27`, and local validation packages `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` at exact 0.84.0. Optional published Pi core peer dependencies use `"*"` ranges per current Pi package guidance.
+Current validation baseline: OMP 18.1.15 or later, exact `@cursor/sdk@1.0.27`, and local validation packages `@oh-my-pi/pi-ai`, `@oh-my-pi/pi-coding-agent`, and `@oh-my-pi/pi-tui` at exact 18.1.15.
 
-## Cursor SDK 1.0.17 / pi 0.79.0 cutover visual record
+## Cursor SDK 1.0.27 / OMP 18.1.15 visual record
 
-Record the required cutover validation here or in the final release handoff. The default matrix is native replay only: the runner forces native replay registration on, forces Cursor setting sources off, disables the pi bridge, disables overlapping built-in pi tool exposure, and clears inherited Cursor SDK event-debug artifact env. With `--event-debug`, debug capture writes to a deterministic directory under the visual output directory. Do not commit raw ANSI logs, screenshots, terminal recordings, debug artifacts, or `.debug/visual-smoke` scratch files.
+Record the required cutover validation here or in the final release handoff. The default matrix is native replay only: the runner forces native replay registration on, forces Cursor setting sources off, disables the OMP bridge, disables overlapping built-in OMP tool exposure, and clears inherited Cursor SDK event-debug artifact env. With `--event-debug`, debug capture writes to a deterministic directory under the visual output directory. Do not commit raw ANSI logs, screenshots, terminal recordings, debug...
 
 | Field | Required value / evidence |
 | --- | --- |
 | Command/session used | `npm run smoke:visual -- --ext "$PWD" --cwd "$PWD" --mode plan --out-dir <fresh /tmp dir> --label <matrix label> --prompt <matrix prompt>` with default native-replay isolation |
-| Baseline versions | `pi --version` = 0.79.0; `npm ls` = `@cursor/sdk@1.0.17` and local `@earendil-works/*@0.79.0` |
+| Baseline versions | `omp --version` = 18.1.15; `npm ls` = `@cursor/sdk@1.0.27` and local `@oh-my-pi/*@18.1.15` |
 | Card categories checked | Claim only categories proven by both PNG and JSONL. Required cutover categories are read, grep/search, find/glob, shell success, write, edit/diff, and true read failure. Direct `ls`/list is tracked as excluded from the current one-prompt platform matrix because composer-2-5 does not route it through native `ls` reliably; source-enumeration coverage is gated through find/glob. Neutral Cursor plan/todo/task/mode activity is optional/opportunistic and only counts when JSONL contains a completed Cursor workflow event. |
-| Observed status/card colors | Confirm native-looking cards use native pi styling; neutral Cursor activity is not red; true errors are distinct; diff previews show red/green; plan status is readable |
-| Screenshot/ANSI evidence location | External path only, for example `/tmp/pi-cursor-sdk-1016-visual.*/read-package.{ansi,txt,html,png,jsonl.path}` |
+| Observed status/card colors | Confirm native-looking cards use native OMP styling; neutral Cursor activity is not red; true errors are distinct; diff previews show red/green; plan status is readable |
+| Screenshot/ANSI evidence location | External path only, for example `/tmp/omp-cursor-visual.*/read-package.{ansi,txt,html,png,jsonl.path}` |
 | Debug artifact location | External `.debug/cursor-sdk-events/...` or temp artifact directory path only; do not commit raw artifacts |
 | Pass/fail notes | Summarize any mismatch, blocker, or auth/environment limitation |
 
@@ -27,7 +27,7 @@ Required prompt matrix for this cutover:
 | Label | Prompt | Required JSONL proof | Required visual proof |
 | --- | --- | --- | --- |
 | `read-package` | `Use only your file read tool. Read ./package.json and answer with only the package name. Do not use shell, grep, glob, find, or list tools.` | `toolCall.name=read`, `toolResult.toolName=read`, `isError=false` | Native-looking read card; collapsed label/path readable |
-| `grep-readme` | `Use only your grep/search tool to search ./README.md for the literal string "pi-cursor-sdk". Do not use shell, read, glob, find, ls, or list tools. Report only the first matching file path.` | `toolCall.name=grep`, `toolResult.toolName=grep`, `isError=false` | Native-looking grep/search card; match preview readable |
+| `grep-readme` | `Use only your grep/search tool to search ./README.md for the literal string "omp-cursor". Do not use shell, read, glob, find, ls, or list tools. Report only the first matching file path.` | `toolCall.name=grep`, `toolResult.toolName=grep`, `isError=false` | Native-looking grep/search card; match preview readable |
 | `find-readme` | `Use only your glob/file-search/find tool to find README.md from the repository root. Do not use shell, read, grep, ls, or list tools. Report matched paths exactly.` | `toolCall.name=find`, `toolResult.toolName=find`, `isError=false` | Native-looking find/glob card; matched path readable |
 | `list-src` | Excluded from current required platform matrix. Track manually when Cursor reliably routes this prompt through native `ls`. | `toolCall.name=ls`, `toolResult.toolName=ls`, `isError=false` when exercised | Native-looking list card; directory/path readable |
 | `shell-success` | `Use only your shell/terminal tool to run printf 'cursor visual smoke\\n'. Do not use read, grep, glob, find, ls, edit, or write. Report the output.` | `toolCall.name=bash`, `toolResult.toolName=bash`, `isError=false` | Shell success card is not red/error-styled; stdout readable |
@@ -56,18 +56,18 @@ Earlier manual verification used a visible Terminal window plus `screencapture`.
 
 The canonical workflow is now offscreen and browser-rendered:
 
-1. Spawn `pi` in a pseudo-terminal at a fixed size.
+1. Spawn `omp` in a pseudo-terminal at a fixed size.
 2. Feed the prompt programmatically.
 3. Save raw ANSI output and stripped plain text output.
 4. Render the terminal buffer through a browser-backed terminal renderer, preferably xterm.js.
 5. Save PNG screenshots with `agent_browser` when the harness is available, or Playwright directly when running outside that harness.
 6. Inspect the session JSONL for exact persisted `toolCall` / `toolResult` data.
 
-This is the best default focused visual-debug path because it exercises the real pi TUI, captures card class/color/label/order/truncation issues before users see them, avoids desktop focus stealing, and leaves reviewable artifacts. Use visible Terminal/Ghostty screenshots only for terminal-specific or pixel-level bugs that cannot be judged through browser-rendered ANSI. The cross-platform release gate remains [Platform Smoke](./platform-smoke.md).
+This is the best default focused visual-debug path because it exercises the real OMP TUI, captures card class/color/label/order/truncation issues before users see them, avoids desktop focus stealing, and leaves reviewable artifacts. Use visible Terminal/Ghostty screenshots only for terminal-specific or pixel-level bugs that cannot be judged through browser-rendered ANSI. The cross-platform release gate remains [Platform Smoke](./platform-smoke.md).
 
 ## Tool stack
 
-The canonical runner is checked in at `scripts/visual-tui-smoke.mjs` and exposed as `npm run smoke:visual`. It uses tmux for the fixed-size PTY, `@xterm/xterm` for browser rendering, and Playwright for automatic PNG capture. It resolves `pi` by directly walking the parent `PATH`, uses `process.execPath` for Node, and prepends that Node directory for prereq checks and tmux launches so `#!/usr/bin/env node` shims use the validated Node and a login shell or stale tmux server `PATH` cannot silently select a different executable.
+The canonical runner is checked in at `scripts/visual-tui-smoke.mjs` and exposed as `npm run smoke:visual`. It uses tmux for the fixed-size PTY, `@xterm/xterm` for browser rendering, and Playwright for automatic PNG capture. It resolves `omp` by directly walking the parent `PATH`, uses `process.execPath` for Node, and prepends that Node directory for prereq checks and tmux launches so `#!/usr/bin/env node` shims use the validated Node.
 
 One-time setup from a clean checkout:
 
@@ -76,25 +76,25 @@ npm install
 npx playwright install chromium
 ```
 
-`npx playwright install chromium` is only needed for automatic PNG capture. When running inside the pi agent harness, `agent_browser` is the preferred screenshot tool for generated HTML/ANSI output because it can open local files, verify saved artifacts, and capture exact evidence paths; in that case, run `npm run smoke:visual -- --no-screenshot ...` and screenshot the generated `.html` with `agent_browser`. Outside the harness, use Playwright through the checked-in runner.
+`npx playwright install chromium` is only needed for automatic PNG capture. When running inside the OMP harness, use the browser screenshot tool for generated HTML/ANSI output; in that case, run `npm run smoke:visual -- --no-screenshot ...` and screenshot the generated `.html`. Outside the harness, use Playwright through the checked-in runner.
 
 ## Runner contract
 
 `scripts/visual-tui-smoke.mjs` is the durable source of truth for this workflow. It must keep supporting:
 
-- fixed-size tmux PTY execution of the parent-resolved `pi --approve -e <extension-dir> --model cursor/grok-4.6`
-- parent-resolved `pi` and `tmux` command paths reused in tmux-launched runs, with `process.execPath`'s directory prepended for prereq checks and tmux launches so Node shims use the validated Node
+- fixed-size tmux PTY execution of the parent-resolved `omp --auto-approve -e <extension-dir> --model cursor-sdk/grok-4.6`
+- parent-resolved `omp` and `tmux` command paths reused in tmux-launched runs, with `process.execPath`'s directory prepended for prereq checks and tmux launches so Node shims use the validated Node
 - `PI_CURSOR_NATIVE_TOOL_DISPLAY=1`
 - `PI_CURSOR_REGISTER_NATIVE_TOOLS=1` by default
 - `PI_CURSOR_SETTING_SOURCES=none` by default
 - `PI_CURSOR_PI_TOOL_BRIDGE=0` by default
 - `PI_CURSOR_EXPOSE_BUILTIN_TOOLS=0` by default
 - Cursor SDK event-debug artifact env cleared before each run; `--event-debug` sets a deterministic debug directory under `--out-dir`
-- `PI_CODING_AGENT_DIR` isolated to `<out-dir>/pi-agent`, seeded with the host `auth.json` (0600) plus `quietStartup`/telemetry-off settings, so host extensions, skills, themes, and MCP config cannot leak into captures
+- `PI_CODING_AGENT_DIR` isolated to `<out-dir>/omp-agent`, seeded with only the host `~/.omp/agent/cursor-sdk.json` (0600) plus `quietStartup`/telemetry-off settings, so host extensions, skills, themes, and MCP config cannot leak into captures
 - `PI_OFFLINE=1` and `PI_SKIP_VERSION_CHECK=1`, so update banners and package-update notices cannot appear in captures
 - `TERM=xterm-256color`
 - cwd set to the target audit repo; the tmux session starts in `--cwd` with a non-login shell so a stale tmux-server cwd cannot print `getcwd` errors
-- `--session-id` forwarded to pi only when explicitly provided, so fresh captures avoid the new-session warning line
+- OMP assigns the session file/id inside the supplied `--session-dir`; fresh captures therefore avoid manually forcing an unsupported session-id flag.
 - prompt paste plus carriage return into the interactive TUI
 - bounded post-prompt wait via `--wait-ms`
 - artifacts outside the repo by default
@@ -113,19 +113,19 @@ npm run smoke:visual -- \
   --cwd "$PWD" \
   --prompt "Use only your shell/terminal tool to run printf 'cursor visual smoke\\n'. Do not use read, grep, glob, find, ls, edit, or write. Report the output." \
   --wait-ms 60000 \
-  --out-dir /tmp/pi-cursor-sdk-visual-review
+  --out-dir /tmp/omp-cursor-visual-review
 ```
 
-The runner writes the `.png` through Playwright by default. In the pi agent harness, pass `--no-screenshot`, open the generated `.html` with `agent_browser`, save a PNG screenshot, and record that path beside the runner artifacts. The default evidence is native replay evidence only. For bridge/default-settings visual audits, pass `--bridge`, `--bridge --expose-builtin-tools`, or `--setting-sources <value>` explicitly and label that evidence separately.
+The runner writes the `.png` through Playwright by default. In the OMP harness, pass `--no-screenshot`, open the generated `.html` with the browser screenshot tool, save a PNG screenshot, and record that path beside the runner artifacts. The default evidence is native replay evidence only. For bridge/default-settings visual audits, pass `--bridge`, `--bridge --expose-builtin-tools`, or `--setting-sources <value>` explicitly and label that evidence separately.
 
 ## Before/after comparison
 
 Use a clean worktree for the baseline and the active worktree for the candidate change:
 
 ```bash
-BASE=/tmp/pi-cursor-visual-review
+BASE=/tmp/omp-cursor-visual-review
 BEFORE_WT=$BASE/before-main
-AFTER_WT=/path/to/pi-cursor-sdk
+AFTER_WT=/path/to/omp-cursor
 TARGET=/path/to/test-workspace
 
 rm -rf "$BASE"
@@ -146,7 +146,7 @@ npm run smoke:visual -- \
   --cwd "$TARGET" \
   --prompt "Use only your glob/file-search/find tool to find src/tools/reindex.ts. Do not use shell, bash, grep, read, ls, or list. Print the matched files exactly as found, then stop." \
   --wait-ms 16000 \
-  --out-dir /tmp/pi-cursor-sdk-visual-review-current
+  --out-dir /tmp/omp-cursor-visual-review-current
 
 npm run smoke:visual -- \
   --label after-glob-single \
@@ -154,7 +154,7 @@ npm run smoke:visual -- \
   --cwd "$TARGET" \
   --prompt "Use only your glob/file-search/find tool to find src/tools/reindex.ts. Do not use shell, bash, grep, read, ls, or list. Print the matched files exactly as found, then stop." \
   --wait-ms 16000 \
-  --out-dir /tmp/pi-cursor-sdk-visual-review-current
+  --out-dir /tmp/omp-cursor-visual-review-current
 ```
 
 For review, create a simple HTML/PNG gallery that places `before-*.png` and `after-*.png` side by side. Keep the generated gallery in `/tmp` unless explicitly asked to commit visual artifacts. In agent-harness runs, use `agent_browser` to open that gallery or the generated single-run HTML and save verified screenshots.
@@ -170,9 +170,9 @@ For each visual claim, inspect the JSONL path written by the runner. Confirm at 
 - `toolResult.isError` matches the visual card state.
 - The screenshot label and JSONL path are recorded together, so a card category cannot be claimed from a screenshot or JSONL alone.
 
-For local pi MCP bridge claims, also confirm:
+For local OMP MCP bridge claims, also confirm:
 
-- Bridged calls appear as the real pi tool name (for example `sem_reindex`), not the MCP bridge name (for example `pi__sem_reindex`; or `read`/`pi__read` when overlapping built-ins are explicitly exposed).
+- Bridged calls appear as the real OMP tool name (for example `sem_reindex`), not the MCP bridge name (for example `pi__sem_reindex`; or `read`/`pi__read` when overlapping built-ins are explicitly exposed).
 - The JSONL has no second Cursor MCP replay card for the same bridged call.
 - Non-bridge Cursor MCP activity, if present, still renders as neutral Cursor activity instead of being suppressed.
 
@@ -181,7 +181,7 @@ Small helper pattern:
 ```bash
 python3 - <<'PY'
 import json, pathlib
-path = pathlib.Path('/tmp/pi-cursor-sdk-visual-review-current/shell-success.jsonl.path').read_text().strip()
+path = pathlib.Path('/tmp/omp-cursor-visual-review-current/shell-success.jsonl.path').read_text().strip()
 for line in pathlib.Path(path).read_text().splitlines():
     obj = json.loads(line)
     msg = obj.get('message', {})

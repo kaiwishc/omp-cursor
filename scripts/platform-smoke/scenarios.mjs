@@ -51,7 +51,7 @@ On Windows/PowerShell shell commands, do not use &&; if you add a cd command, se
 
 Steps:
 1. read ./package.json and remember the package name.
-2. grep ./README.md for "pi-cursor-sdk".
+2. grep ./README.md for "omp-cursor".
 3. find README.md from repo root.
 4. find src/cursor-provider.ts from repo root; this is the list=<yes/no> evidence.
 5. run shell: {{shellSmoke}}
@@ -60,7 +60,7 @@ Steps:
 8. run shell and preserve the failure: {{shellFailure}}
 9. stop using tools and answer exactly:
 NATIVE_MATRIX_OK package=<name> grep=<yes/no> find=<yes/no> list=<yes/no> shell=<yes/no> shell_fail=<yes/no> write=<yes/no> edit=<yes/no>`,
-		finalMarker: "NATIVE_MATRIX_OK package=pi-cursor-sdk",
+	finalMarker: "NATIVE_MATRIX_OK package=omp-cursor",
 		requiredCards: [
 			"read", "grep", "find", "shell-success", "write", "edit-diff", "shell-failure", "footer-status",
 		],
@@ -73,7 +73,7 @@ NATIVE_MATRIX_OK package=<name> grep=<yes/no> find=<yes/no> list=<yes/no> shell=
 			{ name: "edit" },
 		],
 		requiredJSONLResults: [
-			{ id: "native-read-package", toolName: "read", isError: false, contains: "pi-cursor-sdk" },
+			{ id: "native-read-package", toolName: "read", isError: false, contains: "omp-cursor" },
 			{ id: "native-grep-readme", toolName: "grep", isError: false, contains: "README.md" },
 			{ id: "native-find-readme", toolName: "find", isError: false, contains: "README.md" },
 			{ id: "native-list-src", toolName: "find", isError: false, contains: "cursor-provider.ts" },
@@ -153,7 +153,7 @@ BRIDGE_MATRIX_OK bash_ok=<yes/no> read_ok=<yes/no> read_missing_error=<yes/no>`,
 			{ name: "bash" },
 		],
 		requiredJSONLResults: [
-			{ id: "bridge-read-success", toolName: "read", isError: false, contains: "pi-cursor-sdk" },
+			{ id: "bridge-read-success", toolName: "read", isError: false, contains: "omp-cursor" },
 			{ id: "bridge-read-failure", toolName: "read", isError: true, contains: "definitely-missing-platform-smoke-file.txt" },
 			{ id: "bridge-shell-success", toolName: "bash", isError: false, contains: "bridge visual smoke" },
 		],

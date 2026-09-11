@@ -39,14 +39,14 @@ const args = new Set(argv);
 function printHelp() {
 	const npmUsage = LOCAL_RESUME_SUITES.map((lane) => `  npm run ${lane.script}`).join("\n");
 	const nodeUsage = LOCAL_RESUME_SUITES.map((lane) => `  node scripts/local-resume-smoke.mjs${lane.flag ? ` ${lane.flag}` : ""}`).join("\n");
-	console.log(`Live local Cursor resume smoke for pi-cursor-sdk.
+	console.log(`Live local Cursor resume smoke for omp-cursor.
 
 Usage:
 ${npmUsage}
 ${nodeUsage}
 
 Environment:
-  CURSOR_LOCAL_RESUME_SMOKE_MODEL          Cursor model id (default: cursor/grok-4.6:slow).
+  CURSOR_LOCAL_RESUME_SMOKE_MODEL          Cursor model id (default: cursor-sdk/default).
   CURSOR_LOCAL_RESUME_SMOKE_TIMEOUT_MS     Timeout in ms per model turn (default: 300000).
   CURSOR_LOCAL_RESUME_SMOKE_KEEP_ARTIFACTS Keep temp artifacts when set to 1.
   CURSOR_LOCAL_RESUME_SMOKE_EXTENSION_PATH Packed extension path override (platform runner only).

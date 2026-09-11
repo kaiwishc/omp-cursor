@@ -1,12 +1,12 @@
 # Cursor dogfood checklist
 
-Short maintainer checklist for **minimal-surface** validation after prompt, bridge, replay, or manifest changes. This is the fast path from pi-cursor-composer dogfood sessions—not a substitute for the required [platform smoke gate](./platform-smoke.md).
+Short maintainer checklist for **minimal-surface** validation after prompt, bridge, replay, or manifest changes. This is the fast path from OMP dogfood sessions—not a substitute for the required [platform smoke gate](./platform-smoke.md).
 
 ## Minimal environment
 
-- Build first after any `src/` edit: `npm run build` (the pi manifest loads compiled `dist/`)
-- Extension only: `PI_CURSOR_PI_TOOL_BRIDGE=1 pi --approve -e . --cursor-no-fast --model cursor-sdk/grok-4.6`
-- Fresh session dir: `--session-dir /tmp/pi-cursor-dogfood-<id>`
+- Build first after any `src/` edit: `npm run build` (the OMP manifest loads compiled `dist/`)
+- Extension only: `PI_CURSOR_PI_TOOL_BRIDGE=1 omp --auto-approve -e . --cursor-no-fast --model cursor-sdk/grok-4.6`
+- Fresh session dir: `--session-dir /tmp/omp-cursor-dogfood-<id>`
 - Baseline surface (no ambient Cursor MCP/rules):
   - `PI_CURSOR_SETTING_SOURCES=none`, **or**
   - empty / minimal `~/.cursor/mcp.json` when you need to verify user MCP config separately
@@ -15,16 +15,16 @@ Short maintainer checklist for **minimal-surface** validation after prompt, brid
 ## One-turn exercise
 
 1. **Native Cursor host tool** — one `read` or `shell` call (Cursor SDK host tools; not listed in MCP `listTools`).
-2. **Pi bridge** (if enabled) — one bridged call via exposed `pi__*` MCP name, e.g. `pi__cursor_ask_question` when active.
+2. **OMP bridge** (if enabled) — one bridged call via exposed `pi__*` MCP name, e.g. `pi__cursor_ask_question` when active.
 3. **Configured MCP** (optional) — only when you intentionally load Cursor MCP via settings; skip for minimal baseline.
 
-`pi --no-tools` is a pi-registry toggle, not a Cursor SDK host-tool kill switch. In dogfood, expect it to remove pi bridge exposure while Cursor host tools can still run.
+`omp --no-tools` is an OMP-registry toggle, not a Cursor SDK host-tool kill switch. In dogfood, expect it to remove OMP bridge exposure while Cursor host tools can still run.
 
 In-session debug: `/cursor-tools` prints bridge enablement, bootstrap manifest enablement, effective `PI_CURSOR_SETTING_SOURCES`, and the callable-surface manifest snapshot for the current session.
 
 ## CLI spot-check
 
-`PI_CURSOR_PI_TOOL_BRIDGE=1 pi --approve -e . --list-models cursor-sdk` should exit 0 and show a Cursor model table. On pi 0.79.x that table can land on stderr in automation, so capture both streams or redirect `2>&1` before treating empty stdout as a discovery failure.
+`PI_CURSOR_PI_TOOL_BRIDGE=1 omp --auto-approve -e . --cursor-no-fast --model cursor-sdk/grok-4.6` should exit 0 and show a Cursor model table. Use `omp models cursor-sdk` for the installed provider catalog; capture both streams in automation because discovery diagnostics can land on stderr.
 
 ## JSONL spot-check
 
@@ -33,10 +33,10 @@ Inspect the session JSONL under the temp `--session-dir`:
 | Pattern | Meaning |
 | --- | --- |
 | `cursor-replay-*` | Display-only replay of Cursor SDK activity—not callable |
-| `cursor-pi-bridge-run-*` | Live pi execution via bridge |
+| `cursor-pi-bridge-run-*` | Live OMP execution via bridge |
 | Callable tools | Cursor SDK host + MCP `listTools` + exposed `pi__*` only |
 
-Common mistake: treating `cursor-replay-*` IDs or pi transcript tool labels as tools to invoke.
+Common mistake: treating `cursor-replay-*` IDs or OMP transcript tool labels as tools to invoke.
 
 ## Bootstrap prompt
 
@@ -59,7 +59,7 @@ Canonical visual evidence: `npm run smoke:visual` (see [Cursor native tool visua
 
 ## Related docs
 
-- [Cursor tool surfaces in pi](./cursor-tool-surfaces.md) — three namespaces and discoverability
+- [Cursor tool surfaces in OMP](./cursor-tool-surfaces.md) — three namespaces and discoverability
 - [Platform smoke gate](./platform-smoke.md) — required cross-platform release gate
 - [Cursor live smoke checklist](./cursor-live-smoke-checklist.md) — inner-loop/manual debug checks
 - [Cursor testing lessons](./cursor-testing-lessons.md) — auth, JSONL scans, plan-mode traps

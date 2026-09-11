@@ -6,8 +6,9 @@ import type {
 	ExtensionAPI,
 	ExtensionContext,
 	Skill,
-} from "@earendil-works/pi-coding-agent";
-import { Type } from "typebox";
+} from "@oh-my-pi/pi-coding-agent";
+import { getActiveSkills } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
+import { Type } from "@oh-my-pi/omptype/typebox"
 import { arePiToolsDisabled } from "./cursor-active-tools.js";
 import type { CursorRuntime } from "./cursor-config.js";
 import { isCursorModel } from "./cursor-model.js";
@@ -48,7 +49,7 @@ function escapeXml(value: string): string {
 }
 
 function getVisibleSkills(skills: readonly Skill[] | undefined): Skill[] {
-	return (skills ?? []).filter((skill) => !skill.disableModelInvocation);
+	return (skills ?? []).filter((skill) => !skill.hide);
 }
 
 function setCurrentSkills(skills: readonly Skill[] | undefined): void {
@@ -70,11 +71,11 @@ function shouldExposeSkillTool(model: ExtensionContext["model"], runtime: Cursor
 	return runtime === "local" && isCursorModel(model) && resolveCursorPiToolBridgeEnabled() && currentSkillsByName.size > 0;
 }
 
-function syncCursorSkillToolForModel(
+async function syncCursorSkillToolForModel(
 	pi: Pick<ExtensionAPI, "getActiveTools" | "setActiveTools">,
 	model: ExtensionContext["model"],
 	runtime: CursorRuntime,
-): void {
+): Promise<void> {
 	const activeToolNames = new Set(pi.getActiveTools());
 	const shouldBeActive = !arePiToolsDisabled(pi) && shouldExposeSkillTool(model, runtime);
 	const alreadyActive = activeToolNames.has(CURSOR_ACTIVATE_SKILL_TOOL_NAME);
@@ -84,7 +85,7 @@ function syncCursorSkillToolForModel(
 	} else {
 		activeToolNames.delete(CURSOR_ACTIVATE_SKILL_TOOL_NAME);
 	}
-	pi.setActiveTools([...activeToolNames]);
+	await pi.setActiveTools([...activeToolNames]);
 }
 
 export function formatCursorSkillsForPrompt(skills: readonly Skill[]): string {
@@ -94,7 +95,7 @@ export function formatCursorSkillsForPrompt(skills: readonly Skill[]): string {
 	const lines = [
 		"\n\nThe following skills provide specialized instructions for specific tasks.",
 		`When a task matches a skill's description, call ${CURSOR_ACTIVATE_SKILL_MCP_NAME} with the skill name to load its full SKILL.md instructions before proceeding.`,
-		"If the pi bridge is disabled and the activation tool is unavailable, use Cursor's file-read capability on the listed SKILL.md location instead.",
+		"If the OMP bridge is disabled and the activation tool is unavailable, use Cursor's file-read capability on the listed SKILL.md location instead.",
 		"When a skill references relative paths, resolve them against the skill directory (the parent of SKILL.md / dirname of the path) and use absolute paths in tool calls.",
 		"",
 		"<available_skills>",
@@ -192,16 +193,11 @@ function wrapSkillContent(skill: Skill, content: string, resources: readonly str
 export function registerCursorSkillTool(pi: CursorSkillToolExtensionApi): void {
 	pi.registerTool({
 		name: CURSOR_ACTIVATE_SKILL_TOOL_NAME,
-		label: "Cursor skill",
-		description: "Load full pi Agent Skill instructions for Cursor. Use with a skill name from the current <available_skills> catalog before applying that skill.",
-		promptSnippet: "Load full pi Agent Skill instructions for a listed skill before Cursor applies that skill",
+		label: "Activate Cursor skill",
+		description: "Load full OMP Agent Skill instructions for Cursor. Use with a skill name from the current <available_skills> catalog before applying that skill.",
 		parameters: Type.Object({
 			name: Type.String({ description: "Skill name from the current <available_skills> catalog" }),
 		}),
-		promptGuidelines: [
-			`Use ${CURSOR_ACTIVATE_SKILL_TOOL_NAME} only for skill names listed in the current <available_skills> catalog.`,
-			"After loading a skill, follow its instructions and resolve relative skill paths against the returned skill directory.",
-		],
 		async execute(_toolCallId, params) {
 			const requestedName = (params as CursorActivateSkillParams).name?.trim();
 			if (!requestedName) {
@@ -231,36 +227,36 @@ export function registerCursorSkillTool(pi: CursorSkillToolExtensionApi): void {
 		},
 	});
 
-	const clearSkillsAndSync = (model: ExtensionContext["model"], runtime: CursorRuntime = "local"): void => {
+	const clearSkillsAndSync = async (model: ExtensionContext["model"], runtime: CursorRuntime = "local"): Promise<void> => {
 		setCurrentSkills([]);
-		syncCursorSkillToolForModel(pi, model, runtime);
+		await syncCursorSkillToolForModel(pi, model, runtime);
 	};
 
 	registerCursorModelLifecycle(pi, {
-		sessionStart: (_event, ctx) => {
-			clearSkillsAndSync(ctx.model);
+		sessionStart: async (_event, ctx) => {
+			await clearSkillsAndSync(ctx.model);
 		},
-		modelSelect: (event) => {
-			clearSkillsAndSync(event.model);
-		},
-		turnStart: (_event, ctx) => {
+		turnStart: async (_event, ctx) => {
 			const cursorModel = isCursorModel(ctx.model);
 			const runtime = resolveEffectiveRuntimeForSkillLifecycle(cursorModel, ctx);
 			if (!cursorModel || runtime === "cloud") setCurrentSkills([]);
-			syncCursorSkillToolForModel(pi, ctx.model, runtime);
+			await syncCursorSkillToolForModel(pi, ctx.model, runtime);
 		},
-		beforeAgentStart: (event, ctx) => {
+		beforeAgentStart: async (event, ctx) => {
 			const cursorModel = isCursorModel(ctx.model);
 			const runtime = resolveEffectiveRuntimeForSkillLifecycle(cursorModel, ctx);
-			if (cursorModel && runtime === "local") {
-				setCurrentSkills(event.systemPromptOptions?.skills);
-			} else {
-				setCurrentSkills([]);
-			}
-			syncCursorSkillToolForModel(pi, ctx.model, runtime);
-			const resolved = resolveCursorSkillSystemPrompt(event.systemPrompt, ctx.model, event.systemPromptOptions, runtime);
-			if (resolved === event.systemPrompt) return undefined;
-			return { systemPrompt: resolved };
+			if (!cursorModel || runtime === "cloud") setCurrentSkills([]);
+			else setCurrentSkills(getActiveSkills());
+			await syncCursorSkillToolForModel(pi, ctx.model, runtime);
+			const original = event.systemPrompt.join("\n\n");
+			const resolved = resolveCursorSkillSystemPrompt(
+				original,
+				ctx.model,
+				{ skills: [...getActiveSkills()] },
+				runtime,
+			);
+			if (resolved === original) return undefined;
+			return { systemPrompt: resolved ? [resolved] : [] };
 		},
 	});
 }

@@ -1,4 +1,4 @@
-import type { ExtensionAPI, SessionEntry } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, SessionEntry } from "@oh-my-pi/pi-coding-agent"
 import { isCursorLocalAgentId } from "./cursor-session-agent-resume.js";
 import { getCursorSessionScopeKey } from "./cursor-session-scope.js";
 import { asRecord } from "./cursor-record-utils.js";
@@ -95,7 +95,7 @@ export function recordCursorSessionAgentLineage(agentId: string): void {
 		appendEntry<CursorSessionAgentLineageEntryData>(CURSOR_SESSION_AGENT_LINEAGE_ENTRY_TYPE, data);
 		state.recordedAgentIds.add(agentId);
 	} catch {
-		// Lineage is forensic metadata; a failed stock pi append must not affect the session.
+		// Lineage is forensic metadata; a failed stock OMP append must not affect the session.
 	}
 }
 

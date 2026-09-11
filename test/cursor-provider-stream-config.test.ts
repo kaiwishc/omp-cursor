@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Type } from "typebox";
+import { Type } from "@oh-my-pi/omptype/typebox"
 import {
 	resetCursorProviderTestState,
 	mockedCreate,
@@ -26,7 +26,7 @@ import { registerCursorRuntimeControls } from "../src/cursor-state.js";
 import { __testUtils as contextWindowCacheTestUtils } from "../src/context-window-cache.js";
 import { __testUtils as modelDiscoveryTestUtils } from "../src/model-discovery.js";
 import { __testUtils as cursorSessionScopeTestUtils } from "../src/cursor-session-scope.js";
-import type { Context } from "@earendil-works/pi-ai";
+import type { Context, Effort } from "@oh-my-pi/pi-ai"
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
@@ -111,9 +111,9 @@ describe("streamCursor prompt and model config", () => {
 	it("passes trusted project local safety config into Agent.create", async () => {
 		const root = mkdtempSync(join(tmpdir(), "pi-cursor-local-safety-"));
 		const cwd = join(root, "repo");
-		mkdirSync(join(cwd, ".pi"), { recursive: true });
-		writeFileSync(join(cwd, ".pi", "settings.json"), "{}\n");
-		writeFileSync(join(cwd, ".pi", "cursor-sdk.json"), JSON.stringify({ local: { autoReview: true, sandboxOptions: { enabled: true } } }));
+		mkdirSync(join(cwd, ".omp"), { recursive: true });
+		writeFileSync(join(cwd, ".omp", "settings.json"), "{}\n");
+		writeFileSync(join(cwd, ".omp", "cursor-sdk.json"), JSON.stringify({ local: { autoReview: true, sandboxOptions: { enabled: true } } }));
 		cursorSessionScopeTestUtils.set(cwd, "/tmp/session-local-safety.jsonl", "test-session", true);
 		mockCreatedAgent({
 			send: vi.fn().mockResolvedValue({
@@ -221,7 +221,7 @@ describe("streamCursor prompt and model config", () => {
 		});
 		mockCreatedAgent({ agentId: "bc-00000000-0000-0000-0000-000000000001", send: mockSend });
 		const context: Context = {
-			systemPrompt: "Keep this Pi project instruction.",
+			systemPrompt: ["Keep this OMP project instruction."],
 			messages: [
 				{ role: "user", content: "old local context", timestamp: 1 },
 				makeAssistantMessage("old assistant context"),
@@ -245,7 +245,7 @@ describe("streamCursor prompt and model config", () => {
 		expect(mockSend.mock.calls[0]?.[1]).not.toHaveProperty("mcpServers");
 		expect(mockedMessagesList).not.toHaveBeenCalled();
 		const sentMessage = mockSend.mock.calls[0]?.[0] as { text: string };
-		expect(sentMessage.text).toContain("Keep this Pi project instruction.");
+		expect(sentMessage.text).toContain("Keep this OMP project instruction.");
 		expect(sentMessage.text).toContain("fresh cloud request");
 		expect(sentMessage.text).not.toContain("old local context");
 		expect(sentMessage.text).not.toContain("old assistant context");
@@ -411,7 +411,7 @@ describe("streamCursor prompt and model config", () => {
 			[Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
 		});
 		const context: Context = {
-			systemPrompt: "Keep this system prompt.",
+			systemPrompt: ["Keep this system prompt."],
 			messages: [
 				{ role: "user", content: `old request ${"x".repeat(1200)}`, timestamp: 1 },
 				{ role: "user", content: "latest request must remain", timestamp: 2 },
@@ -444,7 +444,7 @@ describe("streamCursor prompt and model config", () => {
 			[Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
 		});
 		const context: Context = {
-			systemPrompt: "Keep image prompt compact.",
+			systemPrompt: ["Keep image prompt compact."],
 			messages: [
 				{ role: "user", content: `old request ${"x".repeat(1200)}`, timestamp: 1 },
 				{
@@ -469,7 +469,7 @@ describe("streamCursor prompt and model config", () => {
 		expect(sentMessage.images).toEqual([{ data: "base64-image", mimeType: "image/png" }]);
 	});
 
-	it("does not advertise pi bridge calls in Agent.send prompt when context tools are empty", async () => {
+	it("does not advertise OMP bridge calls in Agent.send prompt when context tools are empty", async () => {
 		const mockSend = vi.fn().mockResolvedValue({
 			id: "run-1",
 			agentId: "agent-1",
@@ -489,7 +489,7 @@ describe("streamCursor prompt and model config", () => {
 		context.tools = [];
 
 		try {
-			await collectEvents(streamCursor(makeModel("gpt-5.5@272k"), context, { apiKey: "test-key", reasoning: "medium" }));
+			await collectEvents(streamCursor(makeModel("gpt-5.5@272k"), context, { apiKey: "test-key", reasoning: "medium" as Effort }));
 		} finally {
 			if (previousManifest === undefined) delete process.env.PI_CURSOR_TOOL_MANIFEST;
 			else process.env.PI_CURSOR_TOOL_MANIFEST = previousManifest;
@@ -506,7 +506,7 @@ describe("streamCursor prompt and model config", () => {
 		expect(sentMessage.text).not.toContain("prefer pi__mcp");
 	});
 
-	it("keeps pi bridge prompt guidance when the actual bridge exposes tools even if context tools are empty", async () => {
+	it("keeps OMP bridge prompt guidance when the actual bridge exposes tools even if context tools are empty", async () => {
 		const previousManifest = process.env.PI_CURSOR_TOOL_MANIFEST;
 		delete process.env.PI_CURSOR_TOOL_MANIFEST;
 		registerBridgeForProviderTest({
@@ -530,16 +530,16 @@ describe("streamCursor prompt and model config", () => {
 		context.tools = [];
 
 		try {
-			await collectEvents(streamCursor(makeModel("gpt-5.5@272k"), context, { apiKey: "test-key", reasoning: "medium" }));
+			await collectEvents(streamCursor(makeModel("gpt-5.5@272k"), context, { apiKey: "test-key", reasoning: "medium" as Effort }));
 		} finally {
 			if (previousManifest === undefined) delete process.env.PI_CURSOR_TOOL_MANIFEST;
 			else process.env.PI_CURSOR_TOOL_MANIFEST = previousManifest;
 		}
 
 		const sentMessage = mockSend.mock.calls[0]?.[0] as { text: string };
-		expect(sentMessage.text).toContain("For exposed pi bridge tools");
+		expect(sentMessage.text).toContain("For exposed OMP bridge tools");
 		expect(sentMessage.text).not.toContain("Use pi__cursor_ask_question");
-		expect(sentMessage.text).toContain("Pi bridge: call exposed pi__* MCP names");
+		expect(sentMessage.text).toContain("OMP bridge: call exposed pi__* MCP names");
 		expect(sentMessage.text).toContain("prefer pi__mcp for MCP work and pi__subagent for delegation");
 		expect(sentMessage.text).toContain("pi__sem_reindex");
 	});
@@ -559,7 +559,7 @@ describe("streamCursor prompt and model config", () => {
 			[Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
 		});
 		const context: Context = {
-			systemPrompt: "Be helpful.",
+			systemPrompt: ["Be helpful."],
 			messages: [
 				{
 					role: "user",
@@ -723,7 +723,7 @@ describe("streamCursor prompt and model config", () => {
 			[Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
 		});
 
-		const stream = streamCursor(makeModel("gpt-latest@272k"), makeContext(), { apiKey: "test-key", reasoning: "medium" });
+		const stream = streamCursor(makeModel("gpt-latest@272k"), makeContext(), { apiKey: "test-key", reasoning: "medium" as Effort });
 		await collectEvents(stream);
 
 		expect(mockedCreate).toHaveBeenCalledWith(
@@ -792,7 +792,7 @@ describe("streamCursor prompt and model config", () => {
 			[Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
 		});
 
-		const stream = streamCursor(modelWithParams, makeContext(), { apiKey: "test-key", reasoning: "medium" });
+		const stream = streamCursor(modelWithParams, makeContext(), { apiKey: "test-key", reasoning: "medium" as Effort });
 		await collectEvents(stream);
 
 		expect(mockedCreate).toHaveBeenCalledWith(
@@ -829,7 +829,7 @@ describe("streamCursor prompt and model config", () => {
 			[Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
 		});
 
-		const stream = streamCursor(modelWithParams, makeContext(), { apiKey: "test-key", reasoning: "xhigh" });
+		const stream = streamCursor(modelWithParams, makeContext(), { apiKey: "test-key", reasoning: "xhigh" as Effort });
 		await collectEvents(stream);
 
 		expect(mockedCreate).toHaveBeenCalledWith(
@@ -872,7 +872,7 @@ describe("streamCursor prompt and model config", () => {
 			[Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
 		});
 
-		const stream = streamCursor(modelWithParams, makeContext(), { apiKey: "test-key", reasoning: "xhigh" });
+		const stream = streamCursor(modelWithParams, makeContext(), { apiKey: "test-key", reasoning: "xhigh" as Effort });
 		await collectEvents(stream);
 
 		expect(mockedCreate).toHaveBeenCalledWith(

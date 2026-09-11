@@ -1,34 +1,29 @@
+import { AuthStorage } from "@oh-my-pi/pi-ai";
 import { vi } from "vitest";
-import { InMemoryCredentialStore } from "@earendil-works/pi-ai";
-import type { AssistantMessage, AssistantMessageEvent, Context } from "@earendil-works/pi-ai";
-import {
-	ModelRegistry,
-	ModelRuntime,
-	type BuildSystemPromptOptions,
-	type ExtensionCommandContext,
-	type ExtensionContext,
-} from "@earendil-works/pi-coding-agent";
+import type { AssistantMessage, AssistantMessageEvent, Context } from "@oh-my-pi/pi-ai";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import type {
+	BuildSystemPromptOptions,
+	ExtensionCommandContext,
+	ExtensionContext,
+} from "@oh-my-pi/pi-coding-agent";
 import { makeModel } from "./model-fixtures.js";
 import type { ExtensionCommandContextOverrides, ExtensionContextOverrides } from "./pi-harness-types.js";
 
-const sharedTestModelRegistry = new ModelRegistry(await ModelRuntime.create({
-	allowModelNetwork: false,
-	credentials: new InMemoryCredentialStore(),
-	modelsPath: null,
-}));
+const sharedTestModelRegistry = new ModelRegistry(await AuthStorage.create(":memory:"), undefined);
 
 function getSharedTestModelRegistry(): ModelRegistry {
 	return sharedTestModelRegistry;
 }
 
 export function createDefaultSystemPromptOptions(cwd: string): BuildSystemPromptOptions {
-	return {
-		cwd,
-		selectedTools: ["read", "bash", "edit", "write"],
-	};
+	return { cwd };
 }
 
-function createMinimalSessionManager(cwd: string, overrides: Partial<ExtensionContext["sessionManager"]> = {}): ExtensionContext["sessionManager"] {
+function createMinimalSessionManager(
+	cwd: string,
+	overrides: Partial<ExtensionContext["sessionManager"]> = {},
+): ExtensionContext["sessionManager"] {
 	return {
 		getCwd: vi.fn(() => cwd),
 		getSessionDir: vi.fn(() => ""),
@@ -39,13 +34,12 @@ function createMinimalSessionManager(cwd: string, overrides: Partial<ExtensionCo
 		getEntry: vi.fn(() => undefined),
 		getLabel: vi.fn(() => undefined),
 		getBranch: vi.fn(() => []),
-		buildContextEntries: vi.fn(() => []),
 		getHeader: vi.fn(() => null),
 		getEntries: vi.fn(() => []),
 		getTree: vi.fn(() => []),
 		getSessionName: vi.fn(() => undefined),
 		...overrides,
-	};
+	} as unknown as ExtensionContext["sessionManager"];
 }
 
 function createMinimalExtensionUi(): ExtensionContext["ui"] {
@@ -64,7 +58,7 @@ function createMinimalExtensionUi(): ExtensionContext["ui"] {
 		setFooter: vi.fn(),
 		setHeader: vi.fn(),
 		setTitle: vi.fn(),
-		custom: vi.fn(<T>() => Promise.resolve(undefined as T)) as ExtensionContext["ui"]["custom"],
+		custom: vi.fn(async () => undefined),
 		pasteToEditor: vi.fn(),
 		setEditorText: vi.fn(),
 		getEditorText: vi.fn(() => ""),
@@ -73,73 +67,56 @@ function createMinimalExtensionUi(): ExtensionContext["ui"] {
 		setEditorComponent: vi.fn(),
 		getEditorComponent: vi.fn(() => undefined),
 		theme: {} as ExtensionContext["ui"]["theme"],
-		getAllThemes: vi.fn(() => []),
-		getTheme: vi.fn(() => undefined),
-		setTheme: vi.fn(() => ({ success: true })),
+		getAllThemes: vi.fn(async () => []),
+		getTheme: vi.fn(async () => undefined),
+		setTheme: vi.fn(async () => ({ success: true })),
 		getToolsExpanded: vi.fn(() => false),
 		setToolsExpanded: vi.fn(),
-	} satisfies ExtensionContext["ui"];
+	} as unknown as ExtensionContext["ui"];
 }
 
 function createMinimalExtensionContextInternal(overrides: ExtensionContextOverrides = {}): ExtensionContext {
 	const cwd = overrides.cwd ?? process.cwd();
-	const base: ExtensionContext = {
+	const base = {
 		ui: createMinimalExtensionUi(),
-		mode: "tui",
+		mode: "tui" as const,
 		hasUI: true,
 		cwd,
 		sessionManager: createMinimalSessionManager(cwd, overrides.sessionManager),
 		modelRegistry: getSharedTestModelRegistry(),
 		model: makeModel("composer-2.5"),
-		scopedModels: [],
 		isIdle: vi.fn(() => true),
 		isProjectTrusted: vi.fn(() => true),
-		signal: undefined,
 		abort: vi.fn(),
 		hasPendingMessages: vi.fn(() => false),
 		shutdown: vi.fn(),
 		getContextUsage: vi.fn(() => undefined),
 		compact: vi.fn(),
-		getSystemPrompt: vi.fn(() => ""),
-	};
+		getSystemPrompt: vi.fn(() => [] as string[]),
+	} as unknown as ExtensionContext;
 	return {
 		...base,
 		...overrides,
-		ui: {
-			...base.ui,
-			...overrides.ui,
-		},
-		sessionManager: {
-			...base.sessionManager,
-			...overrides.sessionManager,
-		},
-	};
+		ui: { ...base.ui, ...overrides.ui },
+		sessionManager: { ...base.sessionManager, ...overrides.sessionManager },
+	} as ExtensionContext;
 }
 
 function createMinimalExtensionCommandContextInternal(
 	overrides: ExtensionCommandContextOverrides = {},
 ): ExtensionCommandContext {
-	const base = createMinimalExtensionContextInternal(overrides) as ExtensionCommandContext;
+	const base = createMinimalExtensionContextInternal(overrides as unknown as ExtensionContextOverrides) as ExtensionCommandContext;
 	return {
 		...base,
 		...overrides,
-		getSystemPromptOptions:
-			overrides.getSystemPromptOptions ?? vi.fn(() => createDefaultSystemPromptOptions(base.cwd)),
 		waitForIdle: overrides.waitForIdle ?? vi.fn(async () => undefined),
 		newSession: overrides.newSession ?? vi.fn(async () => ({ cancelled: false })),
-		fork: overrides.fork ?? vi.fn(async () => ({ cancelled: false })),
 		navigateTree: overrides.navigateTree ?? vi.fn(async () => ({ cancelled: false })),
 		switchSession: overrides.switchSession ?? vi.fn(async () => ({ cancelled: false })),
 		reload: overrides.reload ?? vi.fn(async () => undefined),
-		ui: {
-			...base.ui,
-			...overrides.ui,
-		},
-		sessionManager: {
-			...base.sessionManager,
-			...overrides.sessionManager,
-		},
-	};
+		ui: { ...base.ui, ...overrides.ui },
+		sessionManager: { ...base.sessionManager, ...overrides.sessionManager },
+	} as ExtensionCommandContext;
 }
 
 export function createExtensionTestContext(ctxOverrides: ExtensionContextOverrides = {}): ExtensionContext {
@@ -154,7 +131,7 @@ export function createExtensionCommandContext(
 
 export function makeContext(messages: Context["messages"] = [{ role: "user", content: "Hello", timestamp: 1 }]): Context {
 	return {
-		systemPrompt: "Be helpful.",
+		systemPrompt: ["Be helpful."],
 		messages,
 	};
 }

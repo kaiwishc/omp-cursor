@@ -10,8 +10,8 @@ import {
 	renderNativeLookingCursorReadReplayResult,
 } from "../src/cursor-native-tool-display-replay.js";
 import { LOCAL_READ_PREVIEW_NOTICE } from "../src/cursor-transcript-utils.js";
-import { Text } from "@earendil-works/pi-tui";
-import { createRenderContext, createRenderTheme } from "./helpers/render-fixtures.js";
+import { Text } from "@oh-my-pi/pi-tui"
+import { createRenderTheme } from "./helpers/render-fixtures.js";
 
 const theme = createRenderTheme();
 
@@ -24,8 +24,6 @@ function renderReplayResultWithDetails(details: unknown): string {
 		{ content: [{ type: "text", text: "ok" }], details },
 		{ expanded: false, isPartial: false },
 		taggedTheme,
-		createRenderContext({ isError: false, showImages: false }),
-		false,
 	)
 		.render(240)
 		.join("\n");
@@ -65,7 +63,7 @@ describe("cursor native replay rendering", () => {
 			sourceToolName: "task",
 			title: "Cursor subagent",
 			summary: "Inspect package.json · Explore · composer-2.5-fast · ID: agent-1",
-			expandedText: "subagent Inspect package.json\n\n1. Package name: pi-cursor-sdk\n2. Risk: peer ranges",
+			expandedText: "subagent Inspect package.json\n\n1. Package name: omp-cursor\n2. Risk: peer ranges",
 		});
 
 		expect(rendered).toContain("to expand");
@@ -164,7 +162,7 @@ describe("cursor native replay rendering", () => {
 			expandedText: `${preamble}\n\nwrite new.txt\n\nCreated 1 lines\n\nhello world\n`,
 		});
 
-		expect(rendered).toContain("<toolOutput>hello world</toolOutput>");
+		expect(rendered).toContain("hello world");
 		expect(rendered).not.toContain("preamble note");
 		expect(rendered).not.toContain("<muted>hello world</muted>");
 	});
@@ -178,7 +176,6 @@ describe("cursor native replay rendering", () => {
 			result,
 			{ expanded: false, isPartial: false },
 			theme,
-			createRenderContext({ isError: false, args: { path: "README.md", localReadPreview: true } }),
 			() => new Text("", 0, 0),
 		)
 			.render(120)

@@ -1,6 +1,7 @@
 import { vi } from "vitest";
-import type { Provider } from "@earendil-works/pi-ai";
-import { createEventBus, type ExtensionAPI, type ProviderConfig, type ToolInfo } from "@earendil-works/pi-coding-agent";
+import type { Provider } from "@oh-my-pi/pi-ai"
+import { type ExtensionAPI, type ProviderConfig, type ToolInfo } from "@oh-my-pi/pi-coding-agent";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
 import type { CursorNativeToolDisplayExtensionApi } from "../../src/cursor-native-tool-display-registration.js";
 import type cursorExtensionFactory from "../../src/index.js";
 import { createExtensionCommandContext } from "./context-fixtures.js";
@@ -12,6 +13,7 @@ import {
 } from "./tool-fixtures.js";
 import type {
 	BridgePiHarness,
+	ExtensionContextOverrides,
 	ExtensionCommandContextOverrides,
 	PiHarness,
 	PiHarnessOptions,
@@ -58,7 +60,7 @@ export function createPiHarness(options: PiHarnessOptions = {}): PiHarness {
 		if (!command) {
 			throw new Error(`Command not registered: ${name}`);
 		}
-		await command.handler(args, createExtensionCommandContext(ctxOverrides));
+		await command.handler(args, createExtensionCommandContext(ctxOverrides as ExtensionContextOverrides));
 	};
 
 	const registerProvider = vi.fn((providerOrName: Provider | string, config?: ProviderConfig) => {
@@ -72,14 +74,13 @@ export function createPiHarness(options: PiHarnessOptions = {}): PiHarness {
 	}) as PiHarness["registerTool"];
 
 	const eventsEmitted: Array<{ channel: string; data: unknown }> = [];
-	const eventBus = createEventBus();
-	const events: ExtensionAPI["events"] = {
-		emit: (channel: string, data: unknown) => {
-			eventsEmitted.push({ channel, data });
-			eventBus.emit(channel, data);
-		},
-		on: (channel, handler) => eventBus.on(channel, handler),
+	const eventBus = new EventBus();
+	const eventBusEmit = eventBus.emit.bind(eventBus);
+	eventBus.emit = (channel, data) => {
+		eventsEmitted.push({ channel, data });
+		eventBusEmit(channel, data);
 	};
+	const events = eventBus;
 
 	return {
 		...eventApi,
@@ -97,13 +98,13 @@ export function createPiHarness(options: PiHarnessOptions = {}): PiHarness {
 					name: tool.name,
 					description: tool.description,
 					parameters: tool.parameters,
-					sourceInfo: { source: "test", path: "pi-cursor-sdk-test", scope: "temporary", origin: "top-level" },
+					sourceInfo: { source: "test", path: "omp-cursor-test", scope: "temporary", origin: "top-level" },
 				});
 			}
 			return [...toolsByName.values()];
 		}),
 		getActiveTools: vi.fn<ExtensionAPI["getActiveTools"]>(() => [...activeToolNames]),
-		setActiveTools: vi.fn<ExtensionAPI["setActiveTools"]>((toolNames: string[]) => {
+		setActiveTools: vi.fn<ExtensionAPI["setActiveTools"]>(async (toolNames: string[]) => {
 			activeToolNames = [...toolNames];
 		}),
 		sendMessage: vi.fn<ExtensionAPI["sendMessage"]>(),

@@ -293,7 +293,7 @@ describe("cursor-session-agent local resume", () => {
 		const lease = await acquireSessionCursorAgent(params);
 
 		expect(storeMock.openSqliteStore).toHaveBeenCalledTimes(1);
-		expect(storeMock.openedOptions[0].stateRoot).toContain("pi-sessions");
+		expect(storeMock.openedOptions[0].stateRoot).toContain("omp-sessions");
 		expect(storeMock.openedOptions[0].stateRoot).not.toBe(toNamespacedPath("/tmp/cursor-sdk-state"));
 		expect(resumeAgent).not.toHaveBeenCalled();
 		expect(createAgent.mock.calls[0][0].local?.store).toBe(storeMock.stores[0]);

@@ -30,6 +30,7 @@ export async function resetIndexExtensionTestState(): Promise<void> {
 	vi.clearAllMocks();
 	installCursorSessionStoreMock();
 	delete process.env.PI_CURSOR_NATIVE_TOOL_DISPLAY;
+	delete process.env.PI_EDIT_VARIANT;
 	delete process.env.PI_CURSOR_REGISTER_NATIVE_TOOLS;
 	delete process.env.PI_CURSOR_PI_TOOL_BRIDGE;
 	process.env.PI_CURSOR_PI_TOOL_BRIDGE = "1";

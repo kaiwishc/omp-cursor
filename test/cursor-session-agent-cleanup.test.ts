@@ -2,7 +2,8 @@ import { mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, unlinkSync, w
 import { tmpdir } from "node:os";
 import { join, toNamespacedPath } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { SessionManager, type SessionEntry } from "@earendil-works/pi-coding-agent";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import type { SessionEntry } from "@oh-my-pi/pi-coding-agent";
 import {
 	CURSOR_SESSION_AGENT_CLEANUP_ENTRY_TYPE,
 	readCursorSessionAgentCleanupPlan,
@@ -368,7 +369,7 @@ describe("cursor-session-agent-cleanup", () => {
 		cleanupTestUtils.setAppendDurability(undefined);
 		const tempDir = mkdtempSync(join(tmpdir(), "cursor-local-cleanup-durable-"));
 		try {
-			const manager = SessionManager.create(tempDir, tempDir, { id: "cleanup-durable" });
+			const manager = SessionManager.create(tempDir, tempDir);
 			manager.appendMessage({ role: "user", content: "root", timestamp: 1 });
 			manager.appendMessage(makeAssistantMessage("root"));
 			const sessionFile = manager.getSessionFile()!;
@@ -407,7 +408,7 @@ describe("cursor-session-agent-cleanup", () => {
 		cleanupTestUtils.setAppendDurability(undefined);
 		const tempDir = mkdtempSync(join(tmpdir(), "cursor-local-cleanup-fsync-fail-"));
 		try {
-			const manager = SessionManager.create(tempDir, tempDir, { id: "cleanup-fsync-fail" });
+			const manager = SessionManager.create(tempDir, tempDir);
 			manager.appendMessage({ role: "user", content: "root", timestamp: 1 });
 			manager.appendMessage(makeAssistantMessage("root"));
 			const sessionFile = manager.getSessionFile()!;

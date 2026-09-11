@@ -3,7 +3,7 @@
  * Remote live suite runner for platform smoke.
  *
  * Runs inside a Crabbox target. It installs the packed extension into a
- * run-scoped pi agent dir, drives pi through node-pty/ConPTY, and prints a
+ * run-scoped OMP agent dir, drives OMP through node-pty/ConPTY, and prints a
  * base64 artifact bundle for the host-side platform-smoke runner to unpack and
  * render.
  */
@@ -17,7 +17,7 @@ import { redactSecrets, writePlatformArtifactBundle } from "./artifacts.mjs";
 import { extractContentText, jsonlHasAssistantFinalTextMarker } from "./jsonl-text.mjs";
 import { getScenario, renderPrompt } from "./scenarios.mjs";
 
-const DEFAULT_MODEL = "cursor/grok-4.6";
+const DEFAULT_MODEL = "cursor-sdk/default";
 const DEFAULT_WAIT_MS = 240_000;
 const SESSION_JSONL_WAIT_MS = 60_000;
 const COLS = 150;
@@ -37,7 +37,7 @@ Options:
   --suite <name>      Required suite name.
   --target <name>     Required target name.
   --model <id>        Cursor model id. Default: ${DEFAULT_MODEL}.
-  --package-name <n>  Packed package name. Default: pi-cursor-sdk.
+  --package-name <n>  Packed package name. Default: omp-cursor.
   --out-dir <dir>     Remote artifact dir. Default: .platform-smoke-runs/live-<suite>-<timestamp>.
   --prep-dir <dir>    Optional shared packed-install prep dir reused by live suites on one target.
   --prepare-only      Prepare/reuse --prep-dir and print the packed package path without a live run.
@@ -52,7 +52,7 @@ function fail(message, code = 2) {
 }
 
 function parseArgs(argv) {
-	const out = { model: DEFAULT_MODEL, packageName: "pi-cursor-sdk", waitMs: DEFAULT_WAIT_MS };
+	const out = { model: DEFAULT_MODEL, packageName: "omp-cursor", waitMs: DEFAULT_WAIT_MS };
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i];
 		if (arg === "-h" || arg === "--help") {
@@ -99,7 +99,7 @@ function runLogged(logDir, label, command, args, options = {}) {
 		cwd: options.cwd ?? process.cwd(),
 		env: options.env ?? process.env,
 		encoding: "utf8",
-		shell: options.shell ?? (process.platform === "win32" && /(?:^|[\\/])(?:npm|npx|pi)\.cmd$/i.test(command)),
+		shell: options.shell ?? (process.platform === "win32" && /(?:^|[\\/])(?:npm|npx|omp)\.cmd$/i.test(command)),
 		timeout: options.timeout ?? 300_000,
 	});
 	const safeLabel = label.replace(/[^A-Za-z0-9_.-]+/g, "-");
@@ -124,14 +124,14 @@ function requireOk(result, label) {
 	}
 }
 
-function resolvePiCli() {
-	const local = resolve(process.cwd(), "node_modules", ".bin", process.platform === "win32" ? "pi.cmd" : "pi");
-	return existsSync(local) ? local : commandName("pi");
+function resolveOmpCli() {
+	const local = resolve(process.cwd(), "node_modules", ".bin", process.platform === "win32" ? "omp.cmd" : "omp");
+	return existsSync(local) ? local : commandName("omp");
 }
 
 function hasInstalledDependencies() {
 	return existsSync(resolve(process.cwd(), "node_modules", ".package-lock.json"))
-		&& existsSync(resolve(process.cwd(), "node_modules", ".bin", process.platform === "win32" ? "pi.cmd" : "pi"));
+		&& existsSync(resolve(process.cwd(), "node_modules", ".bin", process.platform === "win32" ? "omp.cmd" : "omp"));
 }
 
 function ensureNodePtySpawnHelperExecutable(logDir) {
@@ -242,9 +242,9 @@ function stripANSI(text) {
 }
 
 function ptySpawnCommand(args) {
-	const cliEntry = resolve(process.cwd(), "node_modules", "@earendil-works", "pi-coding-agent", "dist", "cli.js");
-	if (!existsSync(cliEntry)) throw new Error(`Pi CLI entry not found: ${cliEntry}`);
-	return { file: process.execPath, args: [cliEntry, ...args] };
+	const cliEntry = resolve(process.cwd(), "node_modules", "@oh-my-pi", "pi-coding-agent", "dist", "cli.js");
+	if (!existsSync(cliEntry)) throw new Error(`OMP CLI entry not found: ${cliEntry}`);
+	return { file: cliEntry, args };
 }
 
 async function waitForSessionJsonl(sessionDir, finalMarker, startedAt, events) {
@@ -538,11 +538,11 @@ async function main() {
 			const npmInstallPacked = runLogged(logDir, "workspace-npm-install-packed", commandName("npm"), ["install", "--no-save", tarballPath], { cwd: workspaceDir, timeout: 180_000 });
 			requireOk(npmInstallPacked, "workspace npm install packed tarball");
 		}
-		const piCli = resolvePiCli();
-		const install = runLogged(logDir, "pi-install", piCli, ["install", "--approve", "-l", installPath], { cwd: workspaceDir, env: piEnv, timeout: 120_000 });
-		requireOk(install, "pi install --approve packed package directory");
-		const list = runLogged(logDir, "pi-list", piCli, ["list", "--approve"], { cwd: workspaceDir, env: piEnv, timeout: 60_000 });
-		requireOk(list, "pi list --approve");
+		const ompCli = resolveOmpCli();
+		const install = runLogged(logDir, "omp-install", ompCli, ["plugin", "install", "--local", installPath], { cwd: workspaceDir, env: piEnv, timeout: 120_000 });
+		requireOk(install, "omp plugin install --local packed package directory");
+		const list = runLogged(logDir, "omp-list", ompCli, ["plugin", "list", "--json"], { cwd: workspaceDir, env: piEnv, timeout: 60_000 });
+		requireOk(list, "omp plugin list --json");
 
 		const suiteEnv = {
 			...process.env,
@@ -557,9 +557,9 @@ async function main() {
 		if (args.suite === "cursor-abort-cleanup") writeProcessSnapshot(logDir, "process-before", platform);
 		const prompt = renderPrompt(scenario, platform);
 		writeFileSync(join(artifactDir, "prompt.txt"), prompt);
-		const piArgs = ["--approve", "--cursor-no-fast", "--cursor-mode", "agent", "--model", args.model, "--session-dir", sessionDir, "--session-id", `platform-${args.suite}-${Date.now()}`, prompt];
+		const piArgs = ["--auto-approve", "--cursor-no-fast", "--cursor-mode", "agent", "--model", args.model, "--session-dir", sessionDir, prompt];
 		const ptyCommand = ptySpawnCommand(piArgs);
-		writeFileSync(join(artifactDir, "pi-command.json"), JSON.stringify({
+		writeFileSync(join(artifactDir, "omp-command.json"), JSON.stringify({
 			...ptyCommand,
 			cwd: workspaceDir,
 			fileExists: existsSync(ptyCommand.file),

@@ -58,8 +58,8 @@ import { __testUtils as nativeToolDisplayTestUtils } from "../../src/cursor-nati
 import { registerCursorNativeToolDisplay } from "../../src/cursor-native-tool-display-registration.js";
 import type { CursorNativeToolDisplayExtensionApi } from "../../src/cursor-native-tool-display-registration.js";
 import type { ModelListItem, Run, SDKAgent, SendOptions } from "@cursor/sdk";
-import type { AssistantMessage, AssistantMessageEvent, TextContent, ImageContent, ToolCall } from "@earendil-works/pi-ai";
-import type { ExtensionAPI, ToolInfo } from "@earendil-works/pi-coding-agent";
+import type { AssistantMessage, AssistantMessageEvent, TextContent, ImageContent, ToolCall } from "@oh-my-pi/pi-ai"
+import type { ExtensionAPI, ToolInfo } from "@oh-my-pi/pi-coding-agent"
 import { installCursorSessionStoreMock } from "./cursor-session-store.js";
 import {
 	collectAssistantEvents,
@@ -150,7 +150,7 @@ export function registerBridgeForProviderTest(options: { active: string[]; tools
 }
 
 export async function connectMcpClient(url: string) {
-	const client = new Client({ name: "pi-cursor-sdk-provider-test", version: "1.0.0" });
+	const client = new Client({ name: "omp-cursor-provider-test", version: "1.0.0" });
 	const transport = new StreamableHTTPClientTransport(new URL(url));
 	await client.connect(transport);
 	return { client, transport };
@@ -275,8 +275,8 @@ export async function createNativeToolDisplayPiForTest(registeredTools: Register
 	await pi.runSessionStart({ hasUI: false });
 	return {
 		getActiveTools: () => pi.getActiveTools(),
-		setActiveTools: (toolNames) => {
-			pi.setActiveTools(toolNames);
+		setActiveTools: async (toolNames) => {
+			await pi.setActiveTools(toolNames);
 		},
 		runTurnStart: (ctxOverrides = {}) => pi.runTurnStart({ hasUI: false, ...ctxOverrides }),
 	};

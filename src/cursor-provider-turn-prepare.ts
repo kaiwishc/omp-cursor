@@ -1,6 +1,7 @@
-import type { Context, SimpleStreamOptions } from "@earendil-works/pi-ai";
+import type { Context, SimpleStreamOptions } from "@oh-my-pi/pi-ai"
 import type { AgentModeOption, ModelSelection, SDKAgent } from "@cursor/sdk";
 import { configureCursorSdkHttp1 } from "./cursor-http1.js";
+import { assertCursorProxyLocalHttp1 } from "./cursor-proxy.js";
 import { installCursorMcpToolTimeoutOverride } from "./cursor-mcp-timeout-override.js";
 import { ensureCursorRipgrepPath } from "./cursor-ripgrep-path.js";
 import { installCursorSdkOutputFilter, suppressCursorSdkOutput } from "./cursor-sdk-output-filter.js";
@@ -50,7 +51,7 @@ import {
 } from "./cursor-cloud-lifecycle.js";
 import { MISSING_CURSOR_API_KEY_MESSAGE } from "./cursor-provider-errors.js";
 import { CursorSdkTurnCoordinator } from "./cursor-provider-turn-coordinator.js";
-import { resolveCursorApiKey } from "./cursor-api-key.js";
+import { resolveCursorRuntimeApiKey } from "./cursor-api-key.js";
 import { loadCursorSdk } from "./cursor-sdk-runtime.js";
 import type {
 	CloudCursorProviderTurnPrepareResult,
@@ -255,6 +256,7 @@ async function prepareCursorLocalProviderTurn(
 		};
 		const sdk = await loadCursorSdk();
 		const { Agent } = sdk;
+		assertCursorProxyLocalHttp1(resolvedConfig.local.useHttp1ForAgent.value);
 		const useHttp1ForAgent = configureCursorSdkHttp1(
 			sdk,
 			resolvedConfig.local.useHttp1ForAgent,
@@ -454,8 +456,8 @@ export async function prepareCursorProviderTurn(
 		: prepareCursorLocalProviderTurn(context);
 }
 
-export function requireCursorApiKey(options: SimpleStreamOptions | undefined): string {
-	const apiKey = resolveCursorApiKey(options?.apiKey);
+export async function requireCursorApiKey(options: SimpleStreamOptions | undefined): Promise<string> {
+	const apiKey = await resolveCursorRuntimeApiKey(options?.apiKey);
 	if (!apiKey) throw new Error(MISSING_CURSOR_API_KEY_MESSAGE);
 	return apiKey;
 }

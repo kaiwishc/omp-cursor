@@ -6,7 +6,7 @@ import {
 	createAssistantMessageEventStream,
 	type Model,
 	type SimpleStreamOptions,
-} from "@earendil-works/pi-ai";
+} from "@oh-my-pi/pi-ai"
 import {
 	cursorLiveRuns,
 	DEFAULT_CURSOR_NATIVE_REPLAY_IDLE_DISPOSE_MS,
@@ -20,7 +20,8 @@ import { disposeAllSessionCursorAgents } from "./cursor-session-agent.js";
 import { attachCursorSdkEventDebugPiStreamTap, type CursorSdkEventDebugSink } from "./cursor-sdk-event-debug.js";
 import { installCursorSdkProcessErrorGuard } from "./cursor-sdk-process-error-guard.js";
 import { sanitizeCursorProviderError } from "./cursor-provider-errors.js";
-import { resolveCursorApiKey } from "./cursor-api-key.js";
+import { resolveCursorRuntimeApiKey } from "./cursor-api-key.js";
+import { rewriteCursorOverflowAssistantMessage } from "./cursor-provider-overflow.js";
 import { CursorProviderTurnRunner } from "./cursor-provider-turn-runner.js";
 import { getCursorSessionScopeKey } from "./cursor-session-scope.js";
 import { runExclusiveCursorSessionTurn, __testUtils as cursorSessionTurnQueueTestUtils } from "./cursor-session-turn-queue.js";
@@ -78,10 +79,12 @@ export function streamCursor(
 		}
 
 		stream.end();
-	})().catch((error: unknown) => {
+	})().catch(async (error: unknown) => {
 		const partial = makeInitialMessage(model);
 		partial.stopReason = "error";
-		partial.errorMessage = sanitizeCursorProviderError(error, resolveCursorApiKey(options?.apiKey));
+		partial.errorMessage = sanitizeCursorProviderError(error, await resolveCursorRuntimeApiKey(options?.apiKey));
+		const rewritten = rewriteCursorOverflowAssistantMessage(partial, true);
+		if (rewritten) Object.assign(partial, rewritten);
 		stream.push({ type: "error", reason: "error", error: partial });
 		stream.end();
 	});

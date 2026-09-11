@@ -1,11 +1,11 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
-import { parseArgs as parsePiArgs } from "../node_modules/@earendil-works/pi-coding-agent/dist/cli/args.js";
-import { buildInitialMessage } from "../node_modules/@earendil-works/pi-coding-agent/dist/cli/initial-message.js";
+import { parseArgs as parseOmpArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
+import { buildInitialMessage } from "@oh-my-pi/pi-coding-agent/cli/initial-message";
 import { CURSOR_TOOL_PRESENTATION_SPECS } from "../src/cursor-tool-presentation-registry.js";
 import { getScenario, renderPrompt, SCENARIOS } from "../scripts/platform-smoke/scenarios.mjs";
 
@@ -27,15 +27,15 @@ try {
   writeFileSync(join(root, "sessions", "session.jsonl"), "{}\n");
   writeFileSync(join(root, "debug", "session.json"), "{}\n");
   writeFileSync(join(root, "runtime-launches.jsonl"), [
-    JSON.stringify({ extensionPath: "/work/prep/packed-workspace/node_modules/pi-cursor-sdk" }),
+    JSON.stringify({ extensionPath: "/work/prep/packed-workspace/node_modules/omp-cursor" }),
     JSON.stringify({ extensionPath: "/work/checkout" }),
   ].join("\n") + "\n");
-  const mismatch = summarizeLocalResumeEvidence(root, "/work/prep/packed-workspace/node_modules/pi-cursor-sdk");
+  const mismatch = summarizeLocalResumeEvidence(root, "/work/prep/packed-workspace/node_modules/omp-cursor");
   writeFileSync(join(root, "runtime-launches.jsonl"), [
-    JSON.stringify({ extensionPath: "C:\\work\\prep\\packed-workspace\\node_modules\\pi-cursor-sdk" }),
-    JSON.stringify({ extensionPath: "c:/work/prep/packed-workspace/node_modules/pi-cursor-sdk" }),
+    JSON.stringify({ extensionPath: "C:\\work\\prep\\packed-workspace\\node_modules\\omp-cursor" }),
+    JSON.stringify({ extensionPath: "c:/work/prep/packed-workspace/node_modules/omp-cursor" }),
   ].join("\n") + "\n");
-  const windowsMatch = summarizeLocalResumeEvidence(root, "C:\\work\\prep\\packed-workspace\\node_modules\\pi-cursor-sdk");
+  const windowsMatch = summarizeLocalResumeEvidence(root, "C:\\work\\prep\\packed-workspace\\node_modules\\omp-cursor");
   const result = { mismatch: mismatch.packedExtensionPathMatched, windowsMatch: windowsMatch.packedExtensionPathMatched };
   console.log(JSON.stringify(result));
   if (result.mismatch !== false || result.windowsMatch !== true) process.exit(1);
@@ -199,7 +199,7 @@ try {
 		const windowsBuild = readFileSync("scripts/platform-smoke/platform-build-windows.ps1", "utf8");
 		expect(windowsBuild).toContain("npm.cmd run check:platform-smoke -- --testTimeout=15000");
 		expect(windowsBuild).toContain("npm.cmd test -- --testTimeout=15000");
-		expect(readFileSync("package.json", "utf8")).toContain('"test": "vitest run"');
+		expect(readFileSync("package.json", "utf8")).toContain('"test": "bun --bun node_modules/vitest/vitest.mjs run --pool=threads"');
 	});
 
 	it("runs and documents required platform targets sequentially to avoid shared host and API contention", () => {
@@ -212,33 +212,36 @@ try {
 		expect(docs).toContain("Total wall time is therefore additive across required targets");
 	});
 
-	it("passes live prompts through Pi's interactive initial-message contract", () => {
+	it("passes live prompts through OMP's interactive initial-message contract", () => {
 		const liveRunner = readFileSync("scripts/platform-smoke/live-suite-runner.mjs", "utf8");
-		expect(liveRunner).toContain("`platform-${args.suite}-${Date.now()}`, prompt]");
-		expect(liveRunner).toContain('PI_OFFLINE: "1"');
-		expect(liveRunner).toContain("file: process.execPath, args: [cliEntry, ...args]");
+		expect(liveRunner).toContain('"--auto-approve"');
+		expect(liveRunner).toContain("return { file: cliEntry, args }");
 		expect(liveRunner).toContain("const ptyCommand = ptySpawnCommand(piArgs)");
 		expect(liveRunner).toContain("...ptyCommand");
 		expect(liveRunner).not.toContain("pty-spawn-command.json");
 		expect(liveRunner).not.toContain("child.write(`\\x1b[200~${prompt}");
 		const artifacts = readFileSync("scripts/platform-smoke/artifacts.mjs", "utf8");
-		expect(artifacts).toContain("pi-command\\.json");
+		expect(artifacts).toContain("omp-command\\.json");
 
 		const prompt = "first line\nsecond line: ' \\\" & | ; $() <> `";
-		const parsed = parsePiArgs([
-			"--approve", "--cursor-no-fast", "--cursor-mode", "agent", "--model", "cursor/grok-4.6",
-			"--session-dir", "C:\\smoke sessions", "--session-id", "platform-test", prompt,
-		]);
+		const parsed = parseOmpArgs(
+			[
+				"--auto-approve", "--cursor-no-fast", "--cursor-mode", "agent", "--model", "cursor-sdk/default",
+				"--session-dir", "C:\\smoke sessions", prompt,
+			],
+			new Map([
+				["cursor-no-fast", { type: "boolean" }],
+				["cursor-mode", { type: "string" }],
+			]),
+		);
 		expect(parsed.unknownFlags.get("cursor-no-fast")).toBe(true);
 		expect(parsed.unknownFlags.get("cursor-mode")).toBe("agent");
-		expect(buildInitialMessage({ parsed }).initialMessage).toBe(prompt);
+		expect(buildInitialMessage({ parsed, stdinContent: "" }).initialMessage).toBe(`\n${prompt}`);
 		expect(parsed.messages).toEqual([]);
 
-		const piArgs = readFileSync("node_modules/@earendil-works/pi-coding-agent/dist/cli/args.js", "utf8");
-		expect(piArgs).toContain("# Interactive mode with initial prompt");
-		expect(piArgs).toContain('${APP_NAME} "List all .ts files in src/"');
-		expect(piArgs).toContain("PI_OFFLINE");
-		expect(piArgs).toContain("Disable startup network operations");
+		const help = run(process.execPath, [resolve("node_modules/@oh-my-pi/pi-coding-agent/dist/cli.js"), "--help"]);
+		expect(help.status, help.stderr).toBe(0);
+		expect(help.stdout).toContain("--auto-approve");
 	});
 
 	it("keeps assistant final markers out of rendered live prompts", () => {
@@ -278,7 +281,7 @@ try {
 import { detectCards, assertRequiredCards } from "./scripts/platform-smoke/card-detect.mjs";
 import { isSafeBundlePath } from "./scripts/platform-smoke/targets.mjs";
 const promptOnly = detectCards("1. call pi__read on ./package.json\n2. grep ./README.md\n");
-const rendered = detectCards("read /workspace/pi-cursor-sdk/package.json\ngrep /pi-cursor-sdk/ in C:/workspace/README.md\nbridge visual smoke\nENOENT: no such file or directory\ncursor:local · fast:off · http1\ngrok-4.6\n");
+const rendered = detectCards("read /workspace/omp-cursor/package.json\ngrep /omp-cursor/ in C:/workspace/README.md\nbridge visual smoke\nENOENT: no such file or directory\ncursor:local · fast:off · http1\ngrok-4.6\n");
 const wrapped = detectCards("read /workspace/very-long-test-workspace/package.js\non\n");
 const wrappedMidToken = detectCards("read /workspace/very-long-test-workspace/package.j\nson\n");
 const localPreview = detectCards("read package.json · local file preview\n");
@@ -428,7 +431,7 @@ try {
     ["summary.json", "assertions.json", "present.txt", "missing.txt"],
   );
   const manifest = JSON.parse(readFileSync(join(suiteDir, "artifact-manifest.json"), "utf8"));
-  const cleanup = createLeaseCleanupFailureResult({ artifactRoot: root, packageName: "pi-cursor-sdk" }, "ubuntu", "cbx_failed", {
+  const cleanup = createLeaseCleanupFailureResult({ artifactRoot: root, packageName: "omp-cursor" }, "ubuntu", "cbx_failed", {
     stdout: "",
     stderr: "stop failed",
     code: 1,

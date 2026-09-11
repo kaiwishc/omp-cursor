@@ -1,5 +1,5 @@
 param(
-	[string]$PackageName = "pi-cursor-sdk",
+	[string]$PackageName = "omp-cursor",
 	[int]$NodeValidationMajor = 24
 )
 
@@ -107,24 +107,24 @@ if ((Test-Path -LiteralPath (Join-Path $TestWorkspace "package.json")) -and (Tes
 }
 Write-Output "PLATFORM_FIXTURE_EXIT=$FIXTURE_EXIT"
 
-$PiCli = Join-Path (Get-Location) "node_modules\.bin\pi.cmd"
-if (-not (Test-Path -LiteralPath $PiCli)) { $PiCli = Join-Path (Get-Location) "node_modules\.bin\pi" }
-if (-not (Test-Path -LiteralPath $PiCli)) {
-	$Command = Get-Command pi -ErrorAction SilentlyContinue
-	$PiCli = $Command.Source
+$OmpCli = Join-Path (Get-Location) "node_modules\.bin\omp.cmd"
+if (-not (Test-Path -LiteralPath $OmpCli)) { $OmpCli = Join-Path (Get-Location) "node_modules\.bin\omp" }
+if (-not (Test-Path -LiteralPath $OmpCli)) {
+	$Command = Get-Command omp -ErrorAction SilentlyContinue
+	$OmpCli = $Command.Source
 }
-Write-Output "PLATFORM_PI_CLI=$PiCli"
+Write-Output "PLATFORM_OMP_CLI=$OmpCli"
 
 $PackedNodeInstallOut = Join-Path $PackDir "packed-node-install.stdout.txt"
 $PackedNodeInstallErr = Join-Path $PackDir "packed-node-install.stderr.txt"
-$PiInstallOut = Join-Path $PackDir "pi-install.stdout.txt"
-$PiInstallErr = Join-Path $PackDir "pi-install.stderr.txt"
-$PiListOut = Join-Path $PackDir "pi-list.stdout.txt"
-$PiListErr = Join-Path $PackDir "pi-list.stderr.txt"
+$OmpInstallOut = Join-Path $PackDir "omp-install.stdout.txt"
+$OmpInstallErr = Join-Path $PackDir "omp-install.stderr.txt"
+$OmpListOut = Join-Path $PackDir "omp-list.stdout.txt"
+$OmpListErr = Join-Path $PackDir "omp-list.stderr.txt"
 
-Write-Output "=== pi install packed tarball ==="
+Write-Output "=== omp install packed tarball ==="
 $TarballPath = Join-Path $PackDir $PackTarball
-if ($PackTarball -and $PiCli -and (Test-Path -LiteralPath $TarballPath)) {
+if ($PackTarball -and $OmpCli -and (Test-Path -LiteralPath $TarballPath)) {
 	Push-Location $PiProject
 	& npm.cmd init -y 1> $PackedNodeInstallOut 2> $PackedNodeInstallErr
 	$NPM_INIT_EXIT = Exit-CodeFromLastCommand
@@ -135,49 +135,49 @@ if ($PackTarball -and $PiCli -and (Test-Path -LiteralPath $TarballPath)) {
 		$PACKED_NODE_INSTALL_EXIT = $NPM_INIT_EXIT
 	}
 	if ($PACKED_NODE_INSTALL_EXIT -eq 0) {
-		$PreviousPiOffline = $env:PI_OFFLINE
+		$PreviousOmpOffline = $env:PI_OFFLINE
 		$env:PI_OFFLINE = "1"
-		& $PiCli install --approve -l (Join-Path ".\node_modules" $PackageName) 1> $PiInstallOut 2> $PiInstallErr
-		$PI_INSTALL_EXIT = Exit-CodeFromLastCommand
-		if ($null -eq $PreviousPiOffline) { Remove-Item Env:\PI_OFFLINE -ErrorAction SilentlyContinue } else { $env:PI_OFFLINE = $PreviousPiOffline }
+		& $OmpCli plugin install --local (Join-Path ".\node_modules" $PackageName) 1> $OmpInstallOut 2> $OmpInstallErr
+		$OMP_INSTALL_EXIT = Exit-CodeFromLastCommand
+		if ($null -eq $PreviousOmpOffline) { Remove-Item Env:\PI_OFFLINE -ErrorAction SilentlyContinue } else { $env:PI_OFFLINE = $PreviousOmpOffline }
 	} else {
-		Set-Content -LiteralPath $PiInstallErr -Value "packed npm install failed"
-		$PI_INSTALL_EXIT = 1
+		Set-Content -LiteralPath $OmpInstallErr -Value "packed npm install failed"
+		$OMP_INSTALL_EXIT = 1
 	}
 	Pop-Location
 } else {
-	Set-Content -LiteralPath $PackedNodeInstallErr -Value "missing pi cli or tarball"
-	Set-Content -LiteralPath $PiInstallErr -Value "missing pi cli or tarball"
+	Set-Content -LiteralPath $PackedNodeInstallErr -Value "missing omp cli or tarball"
+	Set-Content -LiteralPath $OmpInstallErr -Value "missing omp cli or tarball"
 	$PACKED_NODE_INSTALL_EXIT = 1
-	$PI_INSTALL_EXIT = 1
+	$OMP_INSTALL_EXIT = 1
 }
 Write-Output "PLATFORM_PACKED_NODE_INSTALL_EXIT=$PACKED_NODE_INSTALL_EXIT"
 Write-SectionFile "PACKED_NODE_INSTALL_STDOUT" $PackedNodeInstallOut
 Write-SectionFile "PACKED_NODE_INSTALL_STDERR" $PackedNodeInstallErr
-Write-Output "PLATFORM_PI_INSTALL_EXIT=$PI_INSTALL_EXIT"
-Write-SectionFile "PI_INSTALL_STDOUT" $PiInstallOut
-Write-SectionFile "PI_INSTALL_STDERR" $PiInstallErr
+Write-Output "PLATFORM_OMP_INSTALL_EXIT=$OMP_INSTALL_EXIT"
+Write-SectionFile "OMP_INSTALL_STDOUT" $OmpInstallOut
+Write-SectionFile "OMP_INSTALL_STDERR" $OmpInstallErr
 
-Write-Output "=== pi list ==="
-if ($PiCli) {
+Write-Output "=== omp plugin list ==="
+if ($OmpCli) {
 	Push-Location $PiProject
-	$PreviousPiOffline = $env:PI_OFFLINE
+	$PreviousOmpOffline = $env:PI_OFFLINE
 	$env:PI_OFFLINE = "1"
-	& $PiCli list --approve 1> $PiListOut 2> $PiListErr
-	$PI_LIST_EXIT = Exit-CodeFromLastCommand
-	if ($null -eq $PreviousPiOffline) { Remove-Item Env:\PI_OFFLINE -ErrorAction SilentlyContinue } else { $env:PI_OFFLINE = $PreviousPiOffline }
+	& $OmpCli plugin list --json 1> $OmpListOut 2> $OmpListErr
+	$OMP_LIST_EXIT = Exit-CodeFromLastCommand
+	if ($null -eq $PreviousOmpOffline) { Remove-Item Env:\PI_OFFLINE -ErrorAction SilentlyContinue } else { $env:PI_OFFLINE = $PreviousOmpOffline }
 	Pop-Location
 } else {
-	Set-Content -LiteralPath $PiListErr -Value "missing pi cli"
-	$PI_LIST_EXIT = 1
+	Set-Content -LiteralPath $OmpListErr -Value "missing omp cli"
+	$OMP_LIST_EXIT = 1
 }
-Write-Output "PLATFORM_PI_LIST_EXIT=$PI_LIST_EXIT"
-Write-SectionFile "PI_LIST_STDOUT" $PiListOut
-Write-SectionFile "PI_LIST_STDERR" $PiListErr
+Write-Output "PLATFORM_OMP_LIST_EXIT=$OMP_LIST_EXIT"
+Write-SectionFile "OMP_LIST_STDOUT" $OmpListOut
+Write-SectionFile "OMP_LIST_STDERR" $OmpListErr
 
-Write-Output "node=$NODE_VERSION_EXIT ci=$CI_EXIT checkPlatformSmoke=$CHECK_PLATFORM_SMOKE_EXIT test=$TEST_EXIT typecheck=$TC_EXIT pack=$PACK_EXIT fixture=$FIXTURE_EXIT packedNodeInstall=$PACKED_NODE_INSTALL_EXIT install=$PI_INSTALL_EXIT list=$PI_LIST_EXIT"
-if ($NODE_VERSION_EXIT -ne 0 -or $CI_EXIT -ne 0 -or $CHECK_PLATFORM_SMOKE_EXIT -ne 0 -or $TEST_EXIT -ne 0 -or $TC_EXIT -ne 0 -or $PACK_EXIT -ne 0 -or $FIXTURE_EXIT -ne 0 -or $PACKED_NODE_INSTALL_EXIT -ne 0 -or $PI_INSTALL_EXIT -ne 0 -or $PI_LIST_EXIT -ne 0) {
-	Write-Output "PLATFORM_BUILD_FAILED: node=$NODE_VERSION_EXIT ci=$CI_EXIT checkPlatformSmoke=$CHECK_PLATFORM_SMOKE_EXIT test=$TEST_EXIT typecheck=$TC_EXIT pack=$PACK_EXIT fixture=$FIXTURE_EXIT packedNodeInstall=$PACKED_NODE_INSTALL_EXIT install=$PI_INSTALL_EXIT list=$PI_LIST_EXIT"
+Write-Output "node=$NODE_VERSION_EXIT ci=$CI_EXIT checkPlatformSmoke=$CHECK_PLATFORM_SMOKE_EXIT test=$TEST_EXIT typecheck=$TC_EXIT pack=$PACK_EXIT fixture=$FIXTURE_EXIT packedNodeInstall=$PACKED_NODE_INSTALL_EXIT install=$OMP_INSTALL_EXIT list=$OMP_LIST_EXIT"
+if ($NODE_VERSION_EXIT -ne 0 -or $CI_EXIT -ne 0 -or $CHECK_PLATFORM_SMOKE_EXIT -ne 0 -or $TEST_EXIT -ne 0 -or $TC_EXIT -ne 0 -or $PACK_EXIT -ne 0 -or $FIXTURE_EXIT -ne 0 -or $PACKED_NODE_INSTALL_EXIT -ne 0 -or $OMP_INSTALL_EXIT -ne 0 -or $OMP_LIST_EXIT -ne 0) {
+	Write-Output "PLATFORM_BUILD_FAILED: node=$NODE_VERSION_EXIT ci=$CI_EXIT checkPlatformSmoke=$CHECK_PLATFORM_SMOKE_EXIT test=$TEST_EXIT typecheck=$TC_EXIT pack=$PACK_EXIT fixture=$FIXTURE_EXIT packedNodeInstall=$PACKED_NODE_INSTALL_EXIT install=$OMP_INSTALL_EXIT list=$OMP_LIST_EXIT"
 	exit 1
 }
 Write-Output "PLATFORM_BUILD_OK"

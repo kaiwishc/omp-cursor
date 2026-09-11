@@ -517,7 +517,7 @@ describe("cursor-session-agent", () => {
 		resolveDefaultStateRoot("/tmp/cursor-sdk-state");
 
 		await acquire;
-		expect(storeMock.openedOptions[0].stateRoot).toContain("pi-cursor-sdk");
+		expect(storeMock.openedOptions[0].stateRoot).toContain("omp-cursor-");
 		expect(storeMock.openedOptions[0].stateRoot).not.toContain("cursor-sdk-state");
 	});
 
@@ -651,7 +651,7 @@ describe("cursor-session-agent", () => {
 		expect(mockDispose).toHaveBeenCalledTimes(1);
 	});
 
-	it("allows reacquiring a session agent after reload session_shutdown", async () => {
+	it("keeps an OMP session agent closed after session_shutdown", async () => {
 		const mockDispose = vi.fn().mockResolvedValue(undefined);
 		const createAgent = vi.fn().mockImplementation(async () => ({
 			agentId: `agent-${createAgent.mock.calls.length + 1}`,
@@ -668,13 +668,14 @@ describe("cursor-session-agent", () => {
 			modelSelection: { id: "composer-2.5" },
 			createAgent,
 		};
-		const first = await acquireSessionCursorAgent(params);
+		await acquireSessionCursorAgent(params);
 
-		await pi.runSessionShutdown({ reason: "reload" });
-		const second = await acquireSessionCursorAgent(params);
+		await pi.runSessionShutdown({ reason: "quit" });
+		await expect(acquireSessionCursorAgent(params)).rejects.toBeInstanceOf(
+			sessionAgentTestUtils.SessionCursorAgentScopeClosedError,
+		);
 
-		expect(first.agent).not.toBe(second.agent);
-		expect(createAgent).toHaveBeenCalledTimes(2);
+		expect(createAgent).toHaveBeenCalledTimes(1);
 		expect(mockDispose).toHaveBeenCalledTimes(1);
 	});
 

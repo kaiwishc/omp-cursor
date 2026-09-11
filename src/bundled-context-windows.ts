@@ -1,5 +1,5 @@
 // Generated from Cursor SDK checkpoint tokenDetails.maxTokens on 2026-08-18.
-// Refresh with: npm run refresh:cursor-snapshots -- --write --context-windows ~/.pi/agent/cursor-sdk-context-windows.json
+// Refresh with: npm run refresh:cursor-snapshots -- --write --context-windows ~/.omp/agent/cursor-sdk-context-windows.json
 // Keys are current selectable model IDs. Equivalent default :fast/:slow selections
 // collapse to one key; stale and ambiguous aliases are omitted. Values are observed
 // or conservative default/non-Max-mode limits and may override a catalog context

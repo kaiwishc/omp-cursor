@@ -1,5 +1,5 @@
 import type { LocalAgentStore } from "@cursor/sdk";
-import type { ExtensionAPI, ExtensionCommandContext, SessionEntry } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionCommandContext, SessionEntry } from "@oh-my-pi/pi-coding-agent"
 import { asRecord, getString } from "./cursor-record-utils.js";
 import { fsyncExistingRegularFile } from "./cursor-durable-fs.js";
 import { scrubSensitiveText } from "./cursor-sensitive-text.js";
@@ -317,7 +317,7 @@ export async function runCursorSessionAgentCleanupCommand(pi: LocalResumeCleanup
 				if (
 					!cursorSessionStoreIdentitiesEqual(identity, identities.defaultStore) &&
 					!cursorSessionStoreIdentitiesEqual(identity, identities.sessionStore)
-				) throw new InvalidCursorSessionStoreIdentityError("Recorded Cursor local store identity is not valid for this pi session");
+				) throw new InvalidCursorSessionStoreIdentityError("Recorded Cursor local store identity is not valid for this OMP session");
 				let openedStore = openedStores.get(identity.stateRoot);
 				if (!openedStore) {
 					openedStore = await openCursorSessionStore(ctx.cwd, identity);

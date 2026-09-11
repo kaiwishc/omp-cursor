@@ -12,18 +12,12 @@ describe("registerCursorModelLifecycle", () => {
 		const sessionModel = makeModel("session-model");
 		const selectedModel = makeModel("selected-model");
 		await events.runSessionStart({ model: sessionModel });
-		await events.invokeEvent(
-			"model_select",
-			{ type: "model_select", model: selectedModel, previousModel: sessionModel, source: "set" },
-			{ model: sessionModel },
-		);
 		await events.runTurnStart({ model: selectedModel });
 		await events.runBeforeAgentStart({ model: selectedModel });
 
-		expect(sync).toHaveBeenCalledTimes(4);
+		expect(sync).toHaveBeenCalledTimes(3);
 		expect(sync.mock.calls.map(([ctx]) => ctx.model?.id)).toEqual([
 			"session-model",
-			"selected-model",
 			"selected-model",
 			"selected-model",
 		]);
@@ -40,8 +34,8 @@ describe("registerCursorModelLifecycle", () => {
 				calls.push(`sync:${ctx.model?.id}`);
 			},
 			beforeAgentStart: (event, ctx) => {
-				calls.push(`before:${ctx.model?.id}:${event.systemPrompt}`);
-				return { systemPrompt: `${event.systemPrompt} updated` };
+				calls.push(`before:${ctx.model?.id}:${event.systemPrompt.join("\n\n")}`);
+				return { systemPrompt: [`${event.systemPrompt.join("\n\n")} updated`] };
 			},
 		});
 
@@ -55,16 +49,13 @@ describe("registerCursorModelLifecycle", () => {
 			"sync:cursor-model",
 			"before:cursor-model:",
 		]);
-		expect(result).toEqual({ systemPrompt: " updated" });
+		expect(result).toEqual({ systemPrompt: [" updated"] });
 	});
 
-	it("runs explicit model-select and turn-start handlers without raw event hooks", async () => {
+	it("runs turn-start and before-agent handlers without raw event hooks", async () => {
 		const events = createHarnessEventApi();
 		const calls: string[] = [];
 		registerCursorModelLifecycle(events, {
-			modelSelect: (_event, ctx) => {
-				calls.push(`select:${ctx.model?.id}`);
-			},
 			turnStart: (_event, ctx) => {
 				calls.push(`turn:${ctx.model?.id}`);
 			},
@@ -74,16 +65,10 @@ describe("registerCursorModelLifecycle", () => {
 			},
 		});
 
-		const sessionModel = makeModel("session-model");
 		const selectedModel = makeModel("selected-model");
-		await events.invokeEvent(
-			"model_select",
-			{ type: "model_select", model: selectedModel, previousModel: sessionModel, source: "set" },
-			{ model: sessionModel },
-		);
 		await events.runTurnStart({ model: selectedModel });
 		await events.runBeforeAgentStart({ model: selectedModel });
 
-		expect(calls).toEqual(["select:selected-model", "turn:selected-model", "before:selected-model"]);
+		expect(calls).toEqual(["turn:selected-model", "before:selected-model"]);
 	});
 });

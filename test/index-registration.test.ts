@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createAssistantMessageEventStream, type AssistantMessageEvent } from "@earendil-works/pi-ai";
+import { createAssistantMessageEventStream, type AssistantMessageEvent } from "@oh-my-pi/pi-ai"
 import {
 	createExtensionCommandContext,
 	createExtensionRegistrationPi,
@@ -202,11 +202,10 @@ describe("extension registration and discovery", () => {
 			"edit",
 			"write",
 		]);
-		expect(pi._tools.find((tool) => tool.name === CURSOR_ASK_QUESTION_TOOL_NAME)?.promptSnippet).toContain("clarifying question");
-		expect(pi._tools.find((tool) => tool.name === CURSOR_ACTIVATE_SKILL_TOOL_NAME)?.promptSnippet).toContain("Agent Skill");
+		expect(pi._tools.find((tool) => tool.name === CURSOR_ASK_QUESTION_TOOL_NAME)?.description).toContain("clarifying question");
+		expect(pi._tools.find((tool) => tool.name === CURSOR_ACTIVATE_SKILL_TOOL_NAME)?.description).toContain("Agent Skill");
 		const replayTool = pi._tools.find((tool) => tool.name === "cursor");
-		expect(replayTool?.promptSnippet).toBeUndefined();
-		expect(replayTool?.promptGuidelines).toBeUndefined();
+		expect(replayTool?.description).toContain("Cursor");
 		expect(pi.setActiveTools).toHaveBeenCalledWith([
 			"read",
 			"bash",
@@ -221,17 +220,15 @@ describe("extension registration and discovery", () => {
 		expect(pi.on).toHaveBeenCalledWith("session_start", expect.any(Function));
 		expect(pi.on).toHaveBeenCalledWith("before_agent_start", expect.any(Function));
 		expect(pi.on).toHaveBeenCalledWith("turn_start", expect.any(Function));
-		expect(pi.on).toHaveBeenCalledWith("model_select", expect.any(Function));
 		expect(mockedDiscover).toHaveBeenCalledOnce();
 		expect(pi.registerProvider).toHaveBeenCalledOnce();
 
 		const [call] = pi._registered;
 	expect(call.name).toBe("cursor-sdk");
-		expect(call.config.name).toBe("Cursor");
-		expect(call.config.apiKey).toBe("pi-cursor-sdk-cursor-api-key-placeholder");
-		expect(call.config.api).toBe("cursor-sdk");
-		expect(call.config.models).toBe(mockModels);
-		expect(call.config.streamSimple).toBe(streamCursorLazy);
+	expect(call.config.api).toBe("cursor-sdk");
+		expect(call.config.apiKey).toBe("omp-cursor-cursor-api-key-placeholder");
+	expect(call.config.models).toBe(mockModels);
+	expect(call.config.streamSimple).toBe(streamCursorLazy);
 	});
 
 	it("registers a lazy Cursor stream wrapper that delegates only when invoked", async () => {
@@ -288,14 +285,14 @@ describe("extension registration and discovery", () => {
 		expect(pi._activeToolNames()).toContain("cursor");
 		expect(pi._activeToolNames()).toContain(CURSOR_ASK_QUESTION_TOOL_NAME);
 
-		await pi.runModelSelect(makeHarnessModel("openai-codex", "openai-codex-responses", "gpt-5.5"));
+		await pi.runBeforeAgentStart({ model: makeHarnessModel("openai-codex", "openai-codex-responses", "gpt-5.5") });
 		expect(pi._activeToolNames()).not.toContain("cursor");
 		expect(pi._activeToolNames()).not.toContain(CURSOR_ASK_QUESTION_TOOL_NAME);
 		expect(pi._activeToolNames()).not.toContain("grep");
 		expect(pi._activeToolNames()).not.toContain("find");
 		expect(pi._activeToolNames()).toContain("read");
 
-		await pi.runModelSelect(makeModel("composer-2.5"));
+		await pi.runBeforeAgentStart({ model: makeModel("composer-2.5") });
 		expect(pi._activeToolNames()).toContain("cursor");
 		expect(pi._activeToolNames()).toContain(CURSOR_ASK_QUESTION_TOOL_NAME);
 	});
@@ -401,7 +398,7 @@ describe("extension registration and discovery", () => {
 		expect(pi._activeToolNames()).toContain("grep");
 	});
 
-	it("asks Cursor questions through pi UI selection", async () => {
+	it("asks Cursor questions through OMP UI selection", async () => {
 		process.env.PI_CURSOR_NATIVE_TOOL_DISPLAY = "0";
 		mockedDiscover.mockResolvedValueOnce([]);
 		const pi = createExtensionPi();
@@ -438,7 +435,7 @@ describe("extension registration and discovery", () => {
 			{ channel: CURSOR_ASK_QUESTION_BLOCKED_EVENT, data: { active: true } },
 			{ channel: CURSOR_ASK_QUESTION_BLOCKED_EVENT, data: { active: false } },
 		]);
-		expect(tool!.executionMode).toBe("sequential");
+		expect(tool).toBeDefined();
 		const listenerPayloads: unknown[] = [];
 		const unsubscribe = pi.events.on(CURSOR_ASK_QUESTION_BLOCKED_EVENT, (payload) => {
 			listenerPayloads.push(payload);
@@ -463,7 +460,7 @@ describe("extension registration and discovery", () => {
 		});
 	});
 
-	it("clears pi-cursor-sdk:ask-question:blocked when the Cursor question UI is cancelled", async () => {
+	it("clears omp-cursor:ask-question:blocked when the Cursor question UI is cancelled", async () => {
 		process.env.PI_CURSOR_NATIVE_TOOL_DISPLAY = "0";
 		mockedDiscover.mockResolvedValueOnce([]);
 		const pi = createExtensionPi();
@@ -491,7 +488,7 @@ describe("extension registration and discovery", () => {
 		]);
 	});
 
-	it("clears pi-cursor-sdk:ask-question:blocked when the Cursor question UI rejects", async () => {
+	it("clears omp-cursor:ask-question:blocked when the Cursor question UI rejects", async () => {
 		process.env.PI_CURSOR_NATIVE_TOOL_DISPLAY = "0";
 		mockedDiscover.mockResolvedValueOnce([]);
 		const pi = createExtensionPi();
@@ -716,7 +713,7 @@ describe("extension registration and discovery", () => {
 			options?.onFallback?.({
 				reason: "missing-api-key",
 				message:
-					"Cursor model discovery needs an API key from /login (Use an API key -> Cursor) or CURSOR_API_KEY; startup discovery does not parse Pi CLI arguments, and Cursor Agent CLI/Desktop login is not reused. Using fallback Cursor models so /login and model selection still work; fallback models can run once auth exists. After adding auth to an already-started pi session, run /cursor-refresh-models to refresh the full live Cursor model catalog without restarting pi.",
+					"Cursor model discovery needs an API key from CURSOR_API_KEY or apiKey in ~/.omp/agent/cursor-sdk.json; startup discovery does not parse OMP CLI arguments, and Cursor Agent CLI/Desktop login is not reused. Using fallback Cursor models so model selection still works; fallback models can run once a key exists. After configuring a key in an already-started OMP session, run /cursor-refresh-models to refresh the full live Cursor model catalog without restarting OMP.",
 			});
 			return [makeProviderModelConfig("composer-2", { name: "Cursor Composer 2" })];
 		});
@@ -733,7 +730,7 @@ describe("extension registration and discovery", () => {
 		});
 
 		expect(notify).toHaveBeenCalledWith(
-			"Cursor model discovery needs an API key from /login (Use an API key -> Cursor) or CURSOR_API_KEY; startup discovery does not parse Pi CLI arguments, and Cursor Agent CLI/Desktop login is not reused. Using fallback Cursor models so /login and model selection still work; fallback models can run once auth exists. After adding auth to an already-started pi session, run /cursor-refresh-models to refresh the full live Cursor model catalog without restarting pi.",
+			"Cursor model discovery needs an API key from CURSOR_API_KEY or apiKey in ~/.omp/agent/cursor-sdk.json; startup discovery does not parse OMP CLI arguments, and Cursor Agent CLI/Desktop login is not reused. Using fallback Cursor models so model selection still works; fallback models can run once a key exists. After configuring a key in an already-started OMP session, run /cursor-refresh-models to refresh the full live Cursor model catalog without restarting OMP.",
 			"warning",
 		);
 	});
@@ -782,7 +779,8 @@ describe("extension registration and discovery", () => {
 		});
 		expect(notify).not.toHaveBeenCalled();
 
-		await pi.runModelSelect(makeHarnessModel("cursor", "cursor-sdk", "composer-2"), {
+		await pi.runBeforeAgentStart({
+			model: makeHarnessModel("cursor", "cursor-sdk", "composer-2"),
 			hasUI: true,
 			ui: { notify, setStatus: vi.fn() },
 		});

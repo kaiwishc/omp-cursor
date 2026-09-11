@@ -1,5 +1,5 @@
 import type { AgentModeOption } from "@cursor/sdk";
-import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@oh-my-pi/pi-coding-agent"
 import {
 	buildCursorToolManifestText,
 	CURSOR_TOOL_MANIFEST_ENV,
@@ -25,7 +25,7 @@ import {
 	resolveCursorSettingSources,
 } from "./cursor-setting-sources.js";
 import { isCursorModel } from "./cursor-model.js";
-import { registerCursorModelLifecycle } from "./cursor-model-lifecycle.js";
+import { registerCursorModelLifecycle, type CursorModelLifecycleExtensionApi } from "./cursor-model-lifecycle.js";
 import { asRecord } from "./cursor-record-utils.js";
 import { getCursorSessionScopeKey } from "./cursor-session-scope.js";
 import { refreshSessionCursorAgentConfig } from "./cursor-session-agent.js";
@@ -138,7 +138,7 @@ function saveGlobalFastPreference(modelId: string, fast: boolean): void {
 				),
 			};
 		},
-		{ newFileMode: 0o600 },
+		{ newFileMode: 0o600, forceMode: 0o600 },
 	);
 }
 
@@ -148,7 +148,7 @@ function saveGlobalCursorHttp1Enabled(enabled: boolean): void {
 		(current) => mergeCursorSdkConfigForUpdate(current, {
 			local: { useHttp1ForAgent: enabled },
 		}),
-		{ newFileMode: 0o600 },
+		{ newFileMode: 0o600, forceMode: 0o600 },
 	);
 }
 
@@ -394,7 +394,7 @@ export function formatCursorToolsDebugReport(
 		try {
 			bridgeSnapshot = buildCursorPiToolBridgeSnapshot(pi);
 		} catch {
-			lines.push("Pi bridge snapshot: unavailable (extension tool APIs required).");
+			lines.push("OMP bridge snapshot: unavailable (extension tool APIs required).");
 		}
 	}
 

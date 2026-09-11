@@ -154,33 +154,17 @@ smoke_run_with_timeout_or_fail() {
 	esac
 }
 
-smoke_seed_pi_agent_home() {
+smoke_seed_omp_agent_home() {
 	local home="$1"
-	local auth_json="${2:-${AUTH_JSON:-${REAL_HOME:-$HOME}/.pi/agent/auth.json}}"
-	local models_src="${3:-${PI_AGENT_DIR:-${REAL_HOME:-$HOME}/.pi/agent}/models.json}"
-	mkdir -p "$home/.pi/agent"
-	if [[ -f "$auth_json" ]]; then
-		cp "$auth_json" "$home/.pi/agent/auth.json"
-		chmod 600 "$home/.pi/agent/auth.json"
-		smoke_log "seeded $home/.pi/agent/auth.json"
-	else
-		smoke_log "WARN: no auth.json at $auth_json"
+	local config_src="${2:-${OMP_AGENT_DIR:-${REAL_HOME:-$HOME}/.omp/agent}/cursor-sdk.json}"
+	local models_src="${3:-${OMP_AGENT_DIR:-${REAL_HOME:-$HOME}/.omp/agent}/models.json}"
+	mkdir -p "$home/.omp/agent"
+	if [[ -f "$config_src" ]]; then
+		cp "$config_src" "$home/.omp/agent/cursor-sdk.json"
+		chmod 600 "$home/.omp/agent/cursor-sdk.json"
+		smoke_log "seeded $home/.omp/agent/cursor-sdk.json"
 	fi
 	if [[ -f "$models_src" ]]; then
-		cp "$models_src" "$home/.pi/agent/models.json"
+		cp "$models_src" "$home/.omp/agent/models.json"
 	fi
-}
-
-smoke_has_auth_provider() {
-	local provider="$1"
-	local auth_path="$2"
-	python3 - "$provider" "$auth_path" <<'PY'
-import json, sys
-provider, path = sys.argv[1], sys.argv[2]
-try:
-    data = json.load(open(path))
-except FileNotFoundError:
-    sys.exit(1)
-sys.exit(0 if provider in data and data[provider] else 1)
-PY
 }

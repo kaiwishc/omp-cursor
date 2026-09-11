@@ -5,17 +5,17 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=scripts/lib/cursor-smoke-shell.sh
 . "$ROOT/scripts/lib/cursor-smoke-shell.sh"
 
-SMOKE_DIR="${SMOKE_DIR:-/tmp/pi-cursor-sdk-live-smoke-$(date +%Y%m%dT%H%M%S)}"
+SMOKE_DIR="${SMOKE_DIR:-/tmp/omp-cursor-live-smoke-$(date +%Y%m%dT%H%M%S)}"
 SHELL_BIN="${SHELL:-/bin/bash}"
 
-PI_BIN=""
+OMP_BIN=""
 NODE_BIN=""
 NPM_BIN=""
 RG_BIN=""
 TMUX_BIN=""
 ENV_BIN=""
 SEALED_PATH=""
-PI_BASE=()
+OMP_BASE=()
 DEBUG_ENV_UNSETS=()
 BASE_ENV=()
 NONE_ENV=()
@@ -33,21 +33,21 @@ cleanup() {
 trap cleanup EXIT
 
 print_help() {
-	printf '%s\n' 'Partial live smoke runner for pi-cursor-sdk (subset of docs/cursor-live-smoke-checklist.md).
+	printf '%s\n' 'Partial live smoke runner for omp-cursor (subset of docs/cursor-live-smoke-checklist.md).
 
 Usage:
   ./scripts/tmux-live-smoke.sh
-  SMOKE_DIR=/tmp/pi-cursor-smoke ./scripts/tmux-live-smoke.sh
+  SMOKE_DIR=/tmp/omp-cursor-smoke ./scripts/tmux-live-smoke.sh
 
 Environment:
-  SMOKE_DIR                     Artifact directory. Defaults to /tmp/pi-cursor-sdk-live-smoke-<timestamp>.
-  CURSOR_API_KEY                Optional fallback auth. Stored pi auth in ~/.pi/agent/auth.json is also supported.
+  SMOKE_DIR                     Artifact directory. Defaults to /tmp/omp-cursor-live-smoke-<timestamp>.
+  CURSOR_API_KEY                Optional; global ~/.omp/agent/cursor-sdk.json apiKey is used when set.
 
 Prerequisites:
-  pi, node, npm, rg, tmux on PATH
-  Resolved pi/node/npm/rg/tmux paths from the parent shell are reused in tmux-launched checks; pi shims run with the resolved node directory first on PATH.
+  omp, node, npm, rg, tmux on PATH
+  Resolved OMP/node/npm/rg/tmux paths from the parent shell are reused in tmux-launched checks; OMP shims run with the resolved node directory first on PATH.
   timeout or gtimeout optional; bash process-group kill fallback is used when absent
-  Child pi runs clear Cursor SDK event-debug env; isolated cases force PI_CURSOR_SETTING_SOURCES=none and default-settings unsets it.
+  Child OMP runs clear Cursor SDK event-debug env; isolated cases force PI_CURSOR_SETTING_SOURCES=none and default-settings unsets it.
 
 Coverage:
   - prereq model listing
@@ -243,7 +243,7 @@ exec %s
 		"$TMUX_BIN" capture-pane -pt "$session" >"$capture" 2>/dev/null || true
 		missing=""
 		"$RG_BIN" -q "SUM=42" "$capture" || missing="${missing} SUM=42"
-		"$RG_BIN" -q "\\(cursor\\) grok-4\\.6" "$capture" || missing="${missing} footer (cursor) grok-4.6"
+		"$RG_BIN" -q "\\(cursor\\) default" "$capture" || missing="${missing} footer (cursor) default"
 		if [[ -z "$missing" ]]; then
 			"$TMUX_BIN" kill-session -t "$session" 2>/dev/null || true
 			log "$name PASS"
@@ -317,13 +317,13 @@ model_listed() {
 	fi
 }
 
-# Capture full catalog then search. Never pipe list-models into rg -q under pipefail.
+# Capture full catalog then search. Never pipe model discovery into rg -q under pipefail.
 capture_and_require_default_model() {
 	local list_cmd=("$@")
 	local models_out="$SMOKE_DIR/prereq.models.txt"
 	local models_err="$SMOKE_DIR/prereq.stderr.txt"
 	if ! "${list_cmd[@]}" >"$models_out" 2>"$models_err"; then
-		fail "pi --list-models cursor failed"
+		fail "omp models cursor-sdk failed"
 	fi
 	if ! model_listed "$models_out" && ! model_listed "$models_err"; then
 		fail "cursor/grok-4.6 not listed"
@@ -331,9 +331,9 @@ capture_and_require_default_model() {
 }
 
 run_self_test() {
-	local temp_dir bin_dir fake_pi fake_node fake_node_marker fake_list_pi env_capture hostile_path captured_path node_dir name
+	local temp_dir bin_dir fake_omp fake_node fake_node_marker fake_list_omp env_capture hostile_path captured_path node_dir name
 	RG_BIN="$(command -v rg || true)"
-	temp_dir="$(mktemp -d /tmp/pi-cursor-sdk-live-smoke-self-test.XXXXXX)"
+	temp_dir="$(mktemp -d /tmp/omp-cursor-live-smoke-self-test.XXXXXX)"
 	trap 'rm -rf "$temp_dir"' RETURN
 	bin_dir="$temp_dir/bin"
 	mkdir -p "$bin_dir"
@@ -384,19 +384,19 @@ EOF_SELFTEST_NODE
 		fail "self-test failed: default-settings env did not unset PI_CURSOR_SETTING_SOURCES"
 	fi
 	# Large-catalog prereq: exercise the same capture_and_require_default_model helper.
-	fake_list_pi="$bin_dir/pi-list-models"
-	cat >"$fake_list_pi" <<'EOF_FAKE_LIST'
+	fake_list_omp="$bin_dir/omp-list-models"
+	cat >"$fake_list_omp" <<'EOF_FAKE_LIST'
 #!/usr/bin/env bash
 i=0
 while [[ $i -lt 20000 ]]; do
-	printf 'cursor/model-%s\n' "$i"
+	printf 'model-%05d\n' "$i"
 	i=$((i + 1))
 done
-printf 'cursor/grok-4.6\n'
+printf 'cursor-sdk/grok-4.6\n'
 exit 0
 EOF_FAKE_LIST
-	chmod +x "$fake_list_pi"
-	SMOKE_DIR="$temp_dir" capture_and_require_default_model "$fake_list_pi"
+	chmod +x "$fake_list_omp"
+	SMOKE_DIR="$temp_dir" capture_and_require_default_model "$fake_list_omp"
 	if [[ "$(wc -l <"$temp_dir/prereq.models.txt" | tr -d ' ')" -lt 20000 ]]; then
 		fail "self-test failed: large catalog was truncated before search"
 	fi
@@ -413,7 +413,7 @@ if [[ "${1:-}" == "--self-test" ]]; then
 	exit 0
 fi
 
-PI_BIN="$(smoke_resolve_cmd pi)"
+OMP_BIN="$(smoke_resolve_cmd omp)"
 NODE_BIN="$(smoke_resolve_node_cmd)"
 NPM_BIN="$(smoke_resolve_cmd npm)"
 RG_BIN="$(smoke_resolve_cmd rg)"
@@ -425,58 +425,58 @@ build_smoke_env_arrays
 if [[ "$SHELL_BIN" != /* ]]; then
 	SHELL_BIN="$(smoke_resolve_cmd "$SHELL_BIN")"
 fi
-PI_BASE=(
-	"$PI_BIN" --approve -e "$ROOT"
+OMP_BASE=(
+	"$OMP_BIN" --auto-approve -e "$ROOT"
 	--cursor-no-fast
-	--model cursor/grok-4.6
+	--model cursor-sdk/default
 )
 
 if [[ -z "${CURSOR_API_KEY:-}" ]]; then
-	log "CURSOR_API_KEY is unset; relying on stored pi auth or other supported Cursor auth"
+	log "CURSOR_API_KEY is unset; live run will use ~/.omp/agent/cursor-sdk.json when available"
 fi
 
 mkdir -p "$SMOKE_DIR"
 printf '%s\n' "$SMOKE_DIR" >"$SMOKE_DIR/smoke-dir.txt"
 
 log "SMOKE_DIR=$SMOKE_DIR"
-log "pi=$PI_BIN"
+log "omp=$OMP_BIN"
 log "node=$NODE_BIN"
 log "npm=$NPM_BIN"
 log "tmux=$TMUX_BIN"
 log "partial live smoke: prereq, basic, default-settings, noninteractive-math, tui, steering, diagnostics, jsonl"
 
-"${BASE_ENV[@]}" "$PI_BIN" --version | tee "$SMOKE_DIR/prereq.pi-version.txt"
-"${BASE_ENV[@]}" "$NPM_BIN" --prefix "$ROOT" ls @cursor/sdk @earendil-works/pi-coding-agent @earendil-works/pi-ai @earendil-works/pi-tui | tee "$SMOKE_DIR/prereq.npm-ls.txt"
+"${BASE_ENV[@]}" "$OMP_BIN" --version | tee "$SMOKE_DIR/prereq.omp-version.txt"
+"${BASE_ENV[@]}" "$NPM_BIN" --prefix "$ROOT" ls @cursor/sdk @oh-my-pi/omptype @oh-my-pi/pi-coding-agent @oh-my-pi/pi-ai @oh-my-pi/pi-tui | tee "$SMOKE_DIR/prereq.npm-ls.txt"
 
-capture_and_require_default_model "${NONE_ENV[@]}" "${PI_BASE[@]}" --list-models cursor
+capture_and_require_default_model "${NONE_ENV[@]}" "$OMP_BIN" models cursor-sdk -e "$ROOT"
 log "prereq PASS"
 
 run_direct basic 600 retry-empty-output "PI_CURSOR_SMOKE_OK" "PI_CURSOR_SMOKE_OK" \
-	"${NONE_ENV[@]}" "${PI_BASE[@]}" \
+	"${NONE_ENV[@]}" "${OMP_BASE[@]}" \
 	--session-dir "$SMOKE_DIR/basic" \
 	--no-tools \
 	-p 'Live smoke. Reply exactly: PI_CURSOR_SMOKE_OK'
 
 run_direct default-settings 300 strict "PRODUCT=42" "PRODUCT=42" \
-	"${DEFAULT_ENV[@]}" "${PI_BASE[@]}" \
+	"${DEFAULT_ENV[@]}" "${OMP_BASE[@]}" \
 	--session-dir "$SMOKE_DIR/default-settings" \
 	--no-tools \
 	-p 'Default settings smoke. Include PRODUCT=42 in the final answer.'
 
 run_direct noninteractive-math 300 strict "SUM=42" "SUM=42" \
-	"${NONE_ENV[@]}" "${PI_BASE[@]}" \
+	"${NONE_ENV[@]}" "${OMP_BASE[@]}" \
 	--session-dir "$SMOKE_DIR/noninteractive-math" \
 	--no-tools \
 	-p 'Noninteractive math smoke. Compute 19 + 23. Reply only with SUM=42.'
 
 run_tui_math_footer_poll tui 420 \
-	"${NONE_ENV[@]}" "${PI_BASE[@]}" \
+	"${NONE_ENV[@]}" "${OMP_BASE[@]}" \
 	--session-dir "$SMOKE_DIR/tui" \
 	--no-tools \
 	'TUI smoke. Compute 19 + 23. Reply only with SUM=<number>.'
 
 run_tmux steering 420 1 \
-	"${NONE_ENV[@]}" "SMOKE_SESSION_DIR=$SMOKE_DIR/steering" "PI_BIN=$PI_BIN" "$NODE_BIN" "$ROOT/scripts/steering-rpc-smoke.mjs"
+	"${NONE_ENV[@]}" "SMOKE_SESSION_DIR=$SMOKE_DIR/steering" "OMP_BIN=$OMP_BIN" "$NODE_BIN" "$ROOT/scripts/steering-rpc-smoke.mjs"
 "$RG_BIN" -q '"steerOk":true' "$SMOKE_DIR/steering.stdout.txt" || fail "steering missing steerOk"
 "$RG_BIN" -q '"steerChain":true' "$SMOKE_DIR/steering.stdout.txt" || fail "steering missing steerChain"
 "$RG_BIN" -q "already has active run|AgentBusyError" "$SMOKE_DIR/steering.stdout.txt" "$SMOKE_DIR/steering.stderr.txt" && fail "steering hit AgentBusyError" || true

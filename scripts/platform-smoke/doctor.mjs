@@ -60,10 +60,10 @@ function parseLeaseId(output) {
 function windowsParallelsDefaults(config = {}) {
 	const windows = config?.windowsParallels ?? {};
 	return {
-		vm: windows.sourceVm || "pi-extension-windows-template",
+		vm: windows.sourceVm || "omp-extension-windows-template",
 		snapshot: windows.snapshot || "crabbox-ready",
 		user: windows.user || env("USER"),
-		workRoot: windows.workRoot || "C:\\crabbox\\pi-cursor-sdk",
+		workRoot: windows.workRoot || "C:\\crabbox\\omp-cursor",
 	};
 }
 
@@ -105,7 +105,7 @@ function crabbox(cbox, args, timeout = 300_000) {
 }
 
 function disposableWindowsSshProbe(cbox, config = {}) {
-	const slug = "pi-cursor-sdk-doctor-windows";
+	const slug = "omp-cursor-doctor-windows";
 	const baseArgs = windowsCrabboxBaseArgs(config);
 	const warm = crabbox(cbox, ["warmup", ...baseArgs, "--slug", slug, "--keep", "--reclaim"], 300_000);
 	const leaseId = parseLeaseId(warm.stdout) ?? parseLeaseId(warm.stderr) ?? slug;
@@ -282,7 +282,7 @@ async function runChecks(config) {
 		}
 		const sshHost = env("PLATFORM_SMOKE_MAC_HOST") || "localhost";
 		const sshUser = env("PLATFORM_SMOKE_MAC_USER") || env("USER");
-		const sshRoot = env("PLATFORM_SMOKE_MAC_WORK_ROOT") || `/Users/${env("USER")}/crabbox/pi-cursor-sdk`;
+		const sshRoot = env("PLATFORM_SMOKE_MAC_WORK_ROOT") || `/Users/${env("USER")}/crabbox/omp-cursor`;
 		const sshDoc = silent(cbox, [
 			"doctor", "--provider", "ssh", "--target", "macos",
 			"--static-host", sshHost, "--static-user", sshUser,

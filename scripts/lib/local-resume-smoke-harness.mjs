@@ -76,11 +76,11 @@ export function assertExactStringArray(label, actual, expected) {
 	}
 }
 
-function findPiCommand() {
+function findOmpCommand() {
 	const cli = join(
 		root,
 		"node_modules",
-		"@earendil-works",
+		"@oh-my-pi",
 		"pi-coding-agent",
 		"dist",
 		"cli.js",
@@ -90,14 +90,14 @@ function findPiCommand() {
 		root,
 		"node_modules",
 		".bin",
-		process.platform === "win32" ? "pi.cmd" : "pi",
+		process.platform === "win32" ? "omp.cmd" : "omp",
 	);
 	return {
 		command: existsSync(local)
 			? local
 			: process.platform === "win32"
-				? "pi.cmd"
-				: "pi",
+				? "omp.cmd"
+				: "omp",
 		argsPrefix: [],
 	};
 }
@@ -152,23 +152,25 @@ export function startRpc({
 	baseEnv = process.env,
 }) {
 	const model =
-		process.env.CURSOR_LOCAL_RESUME_SMOKE_MODEL || "cursor/grok-4.6:slow";
+		process.env.CURSOR_LOCAL_RESUME_SMOKE_MODEL || "cursor-sdk/default";
 	const workspaceDir = join(artifactDir, "workspace");
 	mkdirSync(workspaceDir, { recursive: true });
-	const pi = findPiCommand();
+	const omp = findOmpCommand();
 	const extensionPath = resolve(process.env.CURSOR_LOCAL_RESUME_SMOKE_EXTENSION_PATH || root);
 	if (!existsSync(extensionPath)) fail(`local resume extension path does not exist: ${extensionPath}`);
+	const continueSession = existsSync(sessionDir) && readdirSync(sessionDir).some((entry) => entry.endsWith(".jsonl"));
 	appendFileSync(join(artifactDir, "runtime-launches.jsonl"), `${JSON.stringify({
-		command: pi.command,
+		command: omp.command,
 		extensionPath,
 		workspaceDir,
 		sessionDir,
 		sessionId,
+		continueSession,
 	})}\n`);
 	const child = spawn(
-		pi.command,
+		omp.command,
 		[
-			...pi.argsPrefix,
+			...omp.argsPrefix,
 			"--mode",
 			"rpc",
 			"-e",
@@ -178,11 +180,10 @@ export function startRpc({
 			model,
 			"--cursor-runtime",
 			"local",
-			"--approve",
+			"--auto-approve",
 			"--session-dir",
 			sessionDir,
-			"--session-id",
-			sessionId,
+			...(continueSession ? ["--continue"] : []),
 		],
 		{
 			cwd: workspaceDir,

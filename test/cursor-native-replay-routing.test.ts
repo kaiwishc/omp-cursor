@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import type { Context } from "@earendil-works/pi-ai";
+import type { Context } from "@oh-my-pi/pi-ai"
 import { __testUtils as nativeToolDisplayTestUtils } from "../src/cursor-native-tool-display-state.js";
 import {
 	isNativeToolActiveInContext,
@@ -51,7 +51,7 @@ describe("cursor-native-replay-routing", () => {
 
 	it("partitions native tools by context.tools snapshot", () => {
 		const context = {
-			systemPrompt: "",
+			systemPrompt: [""],
 			messages: [],
 			tools: [{ name: "read", description: "read", parameters: {} }],
 		} as unknown as Context;

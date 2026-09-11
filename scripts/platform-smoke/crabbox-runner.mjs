@@ -97,7 +97,7 @@ export function buildTargetBaseArgs(targetName, config = {}) {
 		case "macos": {
 			const host = env("PLATFORM_SMOKE_MAC_HOST") || "localhost";
 			const user = env("PLATFORM_SMOKE_MAC_USER") || env("USER");
-			const workRoot = env("PLATFORM_SMOKE_MAC_WORK_ROOT") || `/Users/${env("USER")}/crabbox/pi-cursor-sdk`;
+			const workRoot = env("PLATFORM_SMOKE_MAC_WORK_ROOT") || `/Users/${env("USER")}/crabbox/omp-cursor`;
 			return [
 				"--provider", "ssh",
 				"--target", "macos",
@@ -118,10 +118,10 @@ export function buildTargetBaseArgs(targetName, config = {}) {
 		}
 		case "windows-native": {
 			const windows = config.windowsParallels ?? {};
-			const vm = env("PLATFORM_SMOKE_WINDOWS_VM") || windows.sourceVm || "pi-extension-windows-template";
+			const vm = env("PLATFORM_SMOKE_WINDOWS_VM") || windows.sourceVm || "omp-extension-windows-template";
 			const snap = env("PLATFORM_SMOKE_WINDOWS_SNAPSHOT") || windows.snapshot || "crabbox-ready";
 			const user = env("PLATFORM_SMOKE_WINDOWS_USER") || windows.user || env("USER");
-			const workRoot = env("PLATFORM_SMOKE_WINDOWS_NATIVE_WORK_ROOT") || windows.workRoot || "C:\\crabbox\\pi-cursor-sdk";
+			const workRoot = env("PLATFORM_SMOKE_WINDOWS_NATIVE_WORK_ROOT") || "C:\\crabbox\\omp-cursor";
 			return [
 				"--provider", "parallels",
 				"--target", "windows",
@@ -140,14 +140,14 @@ export function buildTargetBaseArgs(targetName, config = {}) {
 /**
  * Get the internal lease ID for a target.
  * For static SSH, this is "static_localhost".
- * For local-container, it's the slug (pi-cursor-sdk-ubuntu).
+ * For local-container, it's the slug (omp-cursor-ubuntu).
  * For parallels, it's the slug used during warmup.
  */
 export function leaseIdFor(targetName) {
 	switch (targetName) {
 		case "macos": return "static_localhost";
-		case "ubuntu": return "pi-cursor-sdk-ubuntu";
-		default: return `pi-cursor-sdk-${targetName}`;
+		case "ubuntu": return "omp-cursor-ubuntu";
+		default: return `omp-cursor-${targetName}`;
 	}
 }
 

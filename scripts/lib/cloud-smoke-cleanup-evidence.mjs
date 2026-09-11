@@ -222,7 +222,7 @@ function projectThrowawayRepository(value) {
 		fail("cloud smoke evidence throwawayRepository must prove deleted:true with httpStatus 404");
 	}
 	const name = requireString(input.name, "throwawayRepository.name");
-	if (!/^[^/]+\/pi-cursor-cloud-smoke-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(name)) {
+	if (!/^[^/]+\/omp-cursor-cloud-smoke-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(name)) {
 		fail("cloud smoke evidence throwawayRepository.name must match the owned smoke repository shape");
 	}
 	return { name, deleted: true, httpStatus: 404 };
@@ -360,7 +360,7 @@ function buildCloudSmokeMatrixEvidence(input, laneProjector, allowDefaultTimesta
 	} = data;
 	const timestamp = data.timestamp ?? (allowDefaultTimestamp ? new Date().toISOString() : undefined);
 	if (schemaVersion !== 1) fail("cloud smoke evidence schemaVersion must be 1");
-	if (model !== "cursor/grok-4.6") fail("cloud smoke evidence model must be cursor/grok-4.6");
+	if (model !== "cursor-sdk/default") fail("cloud smoke evidence model must be cursor-sdk/default");
 	if (!Array.isArray(lanes) || lanes.length !== LANE_NAMES.length) fail("cloud smoke evidence lanes must contain the complete required matrix");
 	if (!Array.isArray(cleanup) || cleanup.length === 0) fail("cloud smoke evidence cleanup must be a non-empty array");
 	const projectedLanes = lanes.map((lane, index) => laneProjector(lane, index));

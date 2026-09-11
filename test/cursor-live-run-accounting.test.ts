@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Context, ToolResultMessage } from "@earendil-works/pi-ai";
+import type { Context, ToolResultMessage } from "@oh-my-pi/pi-ai"
 import { estimateCursorPromptMessageTokens } from "../src/context.js";
 import {
 	consumeCursorLiveToolResults,
@@ -28,7 +28,7 @@ describe("cursor live-run accounting", () => {
 		const matchingSecond = makeToolResult("cursor-replay-run-tool-2", "second result");
 		const nonmatching = makeToolResult("other-run-tool-1", "other result");
 		const context: Context = {
-			systemPrompt: "",
+			systemPrompt: [""],
 			messages: [
 				{ role: "user", content: "Run tools", timestamp: 0 },
 				nonmatching,
@@ -81,7 +81,7 @@ describe("cursor live-run accounting", () => {
 		const promptInputTokens = 25;
 		const toolResult = makeToolResult("unrelated-tool-1", "not for this live run");
 		const context: Context = {
-			systemPrompt: "",
+			systemPrompt: [""],
 			messages: [toolResult],
 		};
 		const state = createCursorLiveRunAccountingState(promptInputTokens);

@@ -3,7 +3,7 @@
  * Maintainer-only Cursor SDK event capture probe.
  * Captures timestamped run.stream(), onDelta, and onStep surfaces for one run.
  */
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
@@ -17,6 +17,7 @@ import {
 	requireApiKey,
 } from "./lib/cursor-cli-args.mjs";
 import { createScriptFail } from "./lib/cursor-script-fail.mjs";
+import { ensurePrivateArtifactDirectory, writePrivateArtifact } from "./lib/cursor-debug-artifacts.mjs";
 import { installCursorSdkOutputFilter, suppressCursorSdkOutput } from "./lib/cursor-sdk-output-filter.mjs";
 
 function isMainModule() {
@@ -39,7 +40,7 @@ const ARTIFACTS = {
 	summary: "summary.json",
 };
 
-const DEFAULT_MODEL = "grok-4.6";
+const DEFAULT_MODEL = "default";
 const RAW_ARTIFACT_WARNING =
 	"Raw artifact files may contain local paths, project text, tool args/results, or secrets from the workspace. Do not commit or share them.";
 
@@ -68,7 +69,7 @@ Options:
   --cwd <path>                 Agent working directory. Default: process.cwd().
   --model <id>                 Cursor model id. Default: ${DEFAULT_MODEL}.
   --prompt <text>              Required user prompt for the run.
-  --out <dir>                  Artifact directory. Default: /tmp/pi-cursor-sdk-sdk-events-<timestamp>.
+  --out <dir>                  Artifact directory. Default: /tmp/omp-cursor-events-<timestamp>.
   --setting-sources <value>    Comma-separated Cursor setting sources, or all/none.
                                Default: PI_CURSOR_SETTING_SOURCES env, otherwise all.
   --include-conversation       Also capture run.conversation() when supported.
@@ -120,7 +121,7 @@ export function parseDebugSdkEventsArgs(argv, env = process.env) {
 }
 
 function defaultOutDir() {
-	return defaultTimestampedDir("pi-cursor-sdk-sdk-events");
+	return defaultTimestampedDir("omp-cursor-events");
 }
 
 function eventType(value) {
@@ -161,7 +162,7 @@ export function createEventJsonlSink(artifactDir, startedAt) {
 		onStep: artifactPath(artifactDir, "onStep"),
 	};
 	for (const path of Object.values(paths)) {
-		writeFileSync(path, "");
+		writePrivateArtifact(path, "");
 	}
 	const counts = {
 		stream: {},
@@ -256,7 +257,7 @@ function printStdoutSummary(summary) {
 
 async function captureEvents(args) {
 	const artifactDir = args.out ?? defaultOutDir();
-	mkdirSync(artifactDir, { recursive: true });
+	ensurePrivateArtifactDirectory(artifactDir);
 	const startedAt = Date.now();
 	const metadata = {
 		capturedAt: new Date(startedAt).toISOString(),
@@ -269,7 +270,7 @@ async function captureEvents(args) {
 		includeConversation: args.includeConversation,
 		warnings: [RAW_ARTIFACT_WARNING],
 	};
-	writeFileSync(artifactPath(artifactDir, "metadata"), `${JSON.stringify(metadata, null, 2)}\n`);
+	writePrivateArtifact(artifactPath(artifactDir, "metadata"), `${JSON.stringify(metadata, null, 2)}\n`);
 
 	const restoreOutputFilter = installCursorSdkOutputFilter();
 	const eventSink = createEventJsonlSink(artifactDir, startedAt);
@@ -301,7 +302,7 @@ async function captureEvents(args) {
 		});
 
 		const waitResult = await suppressCursorSdkOutput(() => run.wait());
-		writeFileSync(artifactPath(artifactDir, "waitResult"), `${JSON.stringify(waitResult, null, 2)}\n`);
+		writePrivateArtifact(artifactPath(artifactDir, "waitResult"), `${JSON.stringify(waitResult, null, 2)}\n`);
 
 		let conversation;
 		if (args.includeConversation) {
@@ -313,7 +314,7 @@ async function captureEvents(args) {
 					reason: run.unsupportedReason("conversation") ?? "conversation unsupported",
 				};
 			}
-			writeFileSync(artifactPath(artifactDir, "conversation"), `${JSON.stringify(conversation, null, 2)}\n`);
+			writePrivateArtifact(artifactPath(artifactDir, "conversation"), `${JSON.stringify(conversation, null, 2)}\n`);
 		}
 
 		const summary = buildSummary({
@@ -323,7 +324,7 @@ async function captureEvents(args) {
 			conversation,
 			includeConversation: args.includeConversation,
 		});
-		writeFileSync(artifactPath(artifactDir, "summary"), `${JSON.stringify(summary, null, 2)}\n`);
+		writePrivateArtifact(artifactPath(artifactDir, "summary"), `${JSON.stringify(summary, null, 2)}\n`);
 		printStdoutSummary(summary);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);

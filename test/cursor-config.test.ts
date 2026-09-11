@@ -27,10 +27,11 @@ import {
 	getCursorSdkUserConfigPath,
 	loadCursorSdkConfig,
 	loadCursorSdkConfigForUpdate,
+	loadCursorSdkProjectConfig,
 	loadCursorSdkUserConfig,
-	mergeCursorSdkConfig,
 	resolveCursorFastDefault,
 	resolveCursorSdkConfig,
+	mergeCursorSdkConfig,
 	saveCursorSdkProjectConfig,
 	saveCursorSdkUserConfig,
 	updateCursorSdkConfig,
@@ -165,6 +166,32 @@ describe("Cursor SDK config resolver", () => {
 		expect(resolved.cloud.skipReviewerRequest).toMatchObject({ value: false, source: "user" });
 	});
 
+	it("loads API keys only from the user config", () => {
+		const userPath = getCursorSdkUserConfigPath(agentDir);
+		const projectPath = getCursorSdkProjectConfigPath(cwd);
+		mkdirSync(agentDir, { recursive: true });
+		mkdirSync(join(cwd, ".omp"), { recursive: true });
+		writeFileSync(userPath, JSON.stringify({ apiKey: "user-key" }));
+		if (process.platform !== "win32") chmodSync(userPath, 0o600);
+		writeFileSync(projectPath, JSON.stringify({ apiKey: "project-key", runtime: "cloud" }));
+
+		expect(loadCursorSdkUserConfig(userPath).apiKey).toBe("user-key");
+		expect(loadCursorSdkProjectConfig(cwd, true)).toEqual({ runtime: "cloud" });
+	});
+
+	it("does not load API keys from an insecure user config and secures later writes", () => {
+		const path = getCursorSdkUserConfigPath(agentDir);
+		mkdirSync(agentDir, { recursive: true });
+		writeFileSync(path, JSON.stringify({ apiKey: "insecure-key" }));
+		if (process.platform !== "win32") chmodSync(path, 0o644);
+
+		expect(loadCursorSdkUserConfig(path).apiKey).toBeUndefined();
+
+		saveCursorSdkUserConfig({ apiKey: "secure-key" }, path);
+		expect(loadCursorSdkUserConfig(path).apiKey).toBe("secure-key");
+		if (process.platform !== "win32") expect(statSync(path).mode & 0o777).toBe(0o600);
+	});
+
 	it("keeps legacy fastDefaults shape compatible and writes user config as 0600", () => {
 		const path = getCursorSdkUserConfigPath(agentDir);
 		mkdirSync(agentDir, { recursive: true });
@@ -184,7 +211,7 @@ describe("Cursor SDK config resolver", () => {
 		const projectPath = getCursorSdkProjectConfigPath(cwd);
 		mkdirSync(agentDir, { recursive: true });
 		writeFileSync(userPath, "{}\n");
-		mkdirSync(join(cwd, ".pi"), { recursive: true });
+		mkdirSync(join(cwd, ".omp"), { recursive: true });
 		writeFileSync(projectPath, "{}\n");
 		if (process.platform !== "win32") {
 			chmodSync(userPath, 0o660);
@@ -201,7 +228,7 @@ describe("Cursor SDK config resolver", () => {
 			expect(statSync(projectPath).mode & 0o777).toBe(0o640);
 		}
 		expect(readdirSync(agentDir)).toEqual(["cursor-sdk.json"]);
-		expect(readdirSync(join(cwd, ".pi"))).toEqual(["cursor-sdk.json"]);
+		expect(readdirSync(join(cwd, ".omp"))).toEqual(["cursor-sdk.json"]);
 	});
 
 	it.skipIf(process.platform === "win32")("uses normal umask permissions for new project config files", () => {
@@ -232,7 +259,7 @@ describe("Cursor SDK config resolver", () => {
 
 	it("loads project config only from the caller's snapshotted trust decision", () => {
 		const projectPath = getCursorSdkProjectConfigPath(cwd);
-		mkdirSync(join(cwd, ".pi"), { recursive: true });
+		mkdirSync(join(cwd, ".omp"), { recursive: true });
 		writeFileSync(projectPath, JSON.stringify({ runtime: "cloud" }));
 
 		expect(loadCursorSdkConfig({ cwd, agentDir, projectTrusted: false })).toEqual({ user: {} });

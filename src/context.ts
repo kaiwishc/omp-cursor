@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import type { Context, Message, ToolCall } from "@earendil-works/pi-ai";
-import { convertToLlm } from "@earendil-works/pi-coding-agent";
+import type { Context, Message, ToolCall } from "@oh-my-pi/pi-ai"
+import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages"
 import type { AgentModeOption, SDKImage } from "@cursor/sdk";
 import { CURSOR_PI_BRIDGE_PREFERENCE_TEXT } from "./cursor-bridge-contract.js";
 import { getCursorReplayPromptLabel } from "./cursor-tool-presentation-registry.js";
@@ -31,11 +31,11 @@ export function getCursorPlanModeToolGuidanceText(
 ): string | undefined {
 	if (agentMode !== "plan") return undefined;
 	return [
-		"Cursor SDK mode is plan for this run. In pi-cursor-sdk, plan mode may still use available Cursor SDK/MCP tools for inspection when needed.",
+		"Cursor SDK mode is plan for this run. In omp-cursor, plan mode may still use available Cursor SDK/MCP tools for inspection when needed.",
 		"Safe/read-only shell commands that inspect or print information are allowed when Cursor chooses to call Shell; do not say Shell is blocked by plan mode and then call it anyway.",
 		options.includePiBridgeGuidance === false
 			? undefined
-			: "Exposed pi__* bridge tools are also callable in plan mode when the user asks for them or they are needed to answer.",
+			: "Exposed OMP bridge tools (`pi__*`) are also callable in plan mode when the user asks for them or they are needed to answer.",
 	].filter((line): line is string => line !== undefined).join("\n");
 }
 
@@ -60,11 +60,11 @@ function getCursorToolBoundaryText(
 	const includePiAskQuestionGuidance = includePiBridgeGuidance && options.includePiAskQuestionGuidance !== false;
 	const lines = [
 		"Cursor SDK tool boundary:",
-		"Call only Cursor SDK/MCP tools exposed in this run; pi history names, replay labels, and transcript names are not callable.",
+		"Call only Cursor SDK/MCP tools exposed in this run; OMP history names, replay labels, and transcript names are not callable.",
 		includePiBridgeGuidance
-			? "For exposed pi bridge tools, call pi__* MCP names, not pi card/history names."
+			? "For exposed OMP bridge tools, call pi__* MCP names, not OMP card/history names."
 			: undefined,
-		"Do not claim pi-side or WebSearch/WebFetch tools unless Cursor ran an equivalent tool.",
+		"Do not claim OMP-side or WebSearch/WebFetch tools unless Cursor ran an equivalent tool.",
 		includePiAskQuestionGuidance ? "Use pi__cursor_ask_question for material choices if exposed." : undefined,
 		getCursorPlanModeToolGuidanceText(options.agentMode, { includePiBridgeGuidance }),
 		"Images: only latest user images are sent; ask to reattach prior images.",
@@ -145,11 +145,11 @@ function sanitizeSystemPromptForCursor(systemPrompt: string): string {
 	let sanitized = systemPrompt;
 	sanitized = sanitized.replace(
 		/Available tools:\n[\s\S]*?\n\nIn addition to the tools above, you may have access to other custom tools depending on the project\.\n\n/g,
-		"Pi tool catalog omitted: Cursor can call only Cursor SDK tools exposed in this run.\n\n",
+		"OMP tool catalog omitted: Cursor can call only Cursor SDK tools exposed in this run.\n\n",
 	);
 	sanitized = sanitized.replace(
-		/Guidelines:\n[\s\S]*?\n\nPi documentation /g,
-		"Guidelines:\n- Be concise in your responses.\n- Show file paths clearly when working with files.\n\nPi documentation ",
+		/Guidelines:\n[\s\S]*?\n\nOMP documentation /g,
+		"Guidelines:\n- Be concise in your responses.\n- Show file paths clearly when working with files.\n\nOMP documentation ",
 	);
 	// Keep the Agent Skills catalog. Cursor-specific skill activation wording is normalized
 	// by cursor-skill-tool.ts before this prompt reaches the Cursor SDK provider.
@@ -285,6 +285,8 @@ function serializeMessageForFingerprint(message: Message, index: number): string
 			return hashCursorContextValue(
 				`toolResult:${message.timestamp ?? index}:${message.toolCallId}:${message.toolName}:${JSON.stringify(message.content)}:${message.isError === true}`,
 			);
+		default:
+			return hashCursorContextValue(`${message.role}:${index}:${JSON.stringify(message)}`);
 	}
 }
 
@@ -381,13 +383,13 @@ export function shouldBootstrapCursorSend(
 }
 
 export function buildCursorIncrementalPrompt(context: Context, options: CursorPromptOptions = {}): CursorPrompt {
-	// Incremental sends omit Pi system instructions and the full tool boundary; the session agent retains both from bootstrap.
+	// Incremental sends omit OMP system instructions and the full tool boundary; the session agent retains both from bootstrap.
 	const messages = normalizePiContextMessages(context.messages);
 	const latestUserMessageIndex = getLatestUserMessageIndex(messages);
 	const latestUserMessage = latestUserMessageIndex >= 0 ? messages[latestUserMessageIndex] : undefined;
 	const latestUserText = latestUserMessage ? formatMessage(latestUserMessage) : undefined;
 	const sectionsBeforeMessages = [
-		"Continue the conversation using Cursor SDK capabilities only. Do not list, promise, or call pi-only tools from earlier context as if they were available.",
+		"Continue the conversation using Cursor SDK capabilities only. Do not list, promise, or call OMP-only tools from earlier context as if they were available.",
 	];
 	const latestUserMessageSections =
 		latestUserText && latestUserMessageIndex >= 0 ? [{ index: latestUserMessageIndex, text: latestUserText }] : [];
@@ -420,7 +422,7 @@ export function buildCursorPrompt(context: Context, options: CursorPromptOptions
 
 	const systemPrompt = normalizeSystemPromptForCursor(context.systemPrompt);
 	if (systemPrompt) {
-		sectionsBeforeMessages.push(`System instructions from pi:\n${sanitizeSystemPromptForCursor(systemPrompt)}`);
+		sectionsBeforeMessages.push(`System instructions from OMP:\n${sanitizeSystemPromptForCursor(systemPrompt)}`);
 	}
 
 	const messages = normalizePiContextMessages(context.messages);

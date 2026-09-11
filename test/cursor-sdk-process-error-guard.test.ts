@@ -32,6 +32,7 @@ function makeCursorSdkAbortConnectError(): Error & { rawMessage: string; code: n
 }
 
 const bunAvailable = spawnSync("bun", ["--version"], { stdio: "ignore" }).status === 0;
+const nodeExecutable = "node";
 const bunIt = bunAvailable ? it : it.skip;
 const posixIt = process.platform === "win32" ? it.skip : it;
 
@@ -53,7 +54,7 @@ registerHooks({
 
 function runNodeProcessErrorProbe(body: string) {
 	return spawnSync(
-		process.execPath,
+		nodeExecutable,
 		[
 			"--import",
 			nodeTypeScriptImportHook,
@@ -205,7 +206,7 @@ function makeCursorExtensionNetworkConnectError(): Error & { rawMessage: string;
 	const error = makeCursorSdkNetworkConnectError();
 	error.stack =
 		"ConnectError: [aborted] read ECONNRESET\n" +
-		"    at file:///C:/Users/example/.pi/agent/git/github.com/fitchmultz/pi-cursor-sdk/node_modules/@connectrpc/connect-node/dist/esm/node-universal-client.js:293:63";
+		"    at file:///C:/Users/example/.omp/agent/git/github.com/fitchmultz/omp-cursor/node_modules/@connectrpc/connect-node/dist/esm/node-universal-client.js:293:63";
 	return error;
 }
 
@@ -670,7 +671,7 @@ setTimeout(() => {
 				timeout: 20_000,
 				env: {
 					...process.env,
-					NODE_BIN: process.execPath,
+					NODE_BIN: nodeExecutable,
 					TS_HOOK: nodeTypeScriptImportHook,
 					PRODUCER_BODY: producerBody,
 				},

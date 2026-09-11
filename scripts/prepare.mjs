@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Purpose: Build generated dist output for GitHub/source installs even when Pi invokes npm install --omit=dev.
+ * Purpose: Build generated dist output for GitHub/source installs even when OMP invokes npm install --omit=dev.
  * Responsibilities: Detect missing source-build dependencies via the local node_modules tree, install dev
  * dependencies with lifecycle scripts disabled, run the canonical build, then prune the dev tree so installs
  * keep a runtime-only footprint.
@@ -17,14 +17,14 @@ import { promisify } from "node:util";
 const execFile = promisify(execFileCallback);
 
 // Checked as literal node_modules paths: require.resolve() is unusable here because
-// several @earendil-works packages expose import-only "exports" maps and throw
+// some OMP packages expose import-only "exports" maps and throw
 // ERR_PACKAGE_PATH_NOT_EXPORTED even when installed.
 const REQUIRED_SOURCE_BUILD_MODULES = [
 	"typescript",
-	"typebox",
-	"@earendil-works/pi-ai",
-	"@earendil-works/pi-coding-agent",
-	"@earendil-works/pi-tui",
+	"@oh-my-pi/omptype",
+	"@oh-my-pi/pi-ai",
+	"@oh-my-pi/pi-coding-agent",
+	"@oh-my-pi/pi-tui",
 ];
 
 function hasBuildDependencies() {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Type } from "typebox";
+import { Type } from "@oh-my-pi/omptype/typebox"
 import {
 	resetCursorProviderTestState,
 	mockedCreate,
@@ -437,7 +437,7 @@ describe("streamCursor Cursor tool lifecycle", () => {
 
 	it("does not append deferred lifecycle progress after non-live run.wait resolves before slow debug capture", async () => {
 		process.env.PI_CURSOR_SDK_EVENT_DEBUG = "1";
-		process.env.PI_CURSOR_SDK_EVENT_DEBUG_RUN_DIR = "/tmp/pi-cursor-sdk-lifecycle-wait-finished";
+		process.env.PI_CURSOR_SDK_EVENT_DEBUG_RUN_DIR = "/tmp/omp-cursor-lifecycle-wait-finished";
 		const captureSpy = mockSlowDebugCapture();
 		const mockSend = vi.fn().mockImplementation(async (_msg: unknown, opts: { onDelta: CursorDeltaHandler }) => {
 			opts.onDelta({
@@ -478,7 +478,7 @@ describe("streamCursor Cursor tool lifecycle", () => {
 	it("does not append deferred lifecycle progress after live background run.wait resolves before slow debug capture", async () => {
 		process.env.PI_CURSOR_NATIVE_TOOL_DISPLAY = "1";
 		process.env.PI_CURSOR_SDK_EVENT_DEBUG = "1";
-		process.env.PI_CURSOR_SDK_EVENT_DEBUG_RUN_DIR = "/tmp/pi-cursor-sdk-lifecycle-live-wait-finished";
+		process.env.PI_CURSOR_SDK_EVENT_DEBUG_RUN_DIR = "/tmp/omp-cursor-lifecycle-live-wait-finished";
 		const captureSpy = mockSlowDebugCapture();
 		await registerNativeToolDisplayForTest([]);
 		const mockSend = vi.fn().mockImplementation(async (_msg: unknown, opts: { onDelta: CursorDeltaHandler }) => {
@@ -540,7 +540,7 @@ describe("streamCursor Cursor tool lifecycle", () => {
 	it("does not append deferred lifecycle progress after live background run.wait rejection", async () => {
 		process.env.PI_CURSOR_NATIVE_TOOL_DISPLAY = "1";
 		process.env.PI_CURSOR_SDK_EVENT_DEBUG = "1";
-		process.env.PI_CURSOR_SDK_EVENT_DEBUG_RUN_DIR = "/tmp/pi-cursor-sdk-lifecycle-wait-fail";
+		process.env.PI_CURSOR_SDK_EVENT_DEBUG_RUN_DIR = "/tmp/omp-cursor-lifecycle-wait-fail";
 		const captureSpy = mockSlowDebugCapture();
 		await registerNativeToolDisplayForTest([]);
 		const waitError = new Error("run wait failed");

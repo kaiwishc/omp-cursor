@@ -284,10 +284,10 @@ describe("formatCursorToolTranscript edit and write", () => {
 									message: {
 										type: "shell",
 										args: { command: "node -p require('./package.json').name" },
-										result: { status: "success", value: { stdout: "pi-cursor-sdk\n", stderr: "", exitCode: 0, signal: "", executionTime: 1 } },
+										result: { status: "success", value: { stdout: "omp-cursor\n", stderr: "", exitCode: 0, signal: "", executionTime: 1 } },
 									},
 								},
-								{ type: "assistantMessage", message: { text: "Package name is pi-cursor-sdk." } },
+								{ type: "assistantMessage", message: { text: "Package name is omp-cursor." } },
 							],
 						},
 					},
@@ -309,8 +309,8 @@ describe("formatCursorToolTranscript edit and write", () => {
 			expect(text).not.toContain("C:\\Users\\example\\secret.txt");
 			expect(text).not.toContain("/repo/src/../package.json");
 			expect(text).toContain("$ node -p require('./package.json').name");
-			expect(text).toContain("pi-cursor-sdk");
-			expect(text).toContain("Package name is pi-cursor-sdk.");
+			expect(text).toContain("omp-cursor");
+			expect(text).toContain("Package name is omp-cursor.");
 		} finally {
 			delete process.env.PI_CURSOR_TASK_PRESENTATION;
 		}

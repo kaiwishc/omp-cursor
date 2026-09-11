@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Type } from "typebox";
+import { Type } from "@oh-my-pi/omptype/typebox"
 import {
 	resetCursorProviderTestState,
 	mockedCreate,
@@ -37,7 +37,7 @@ import { __testUtils as sessionAgentTestUtils } from "../src/cursor-session-agen
 import { __testUtils as cursorSessionScopeTestUtils } from "../src/cursor-session-scope.js";
 import { estimateCursorPromptMessageTokens } from "../src/context.js";
 import { __testUtils as nativeToolDisplayTestUtils } from "../src/cursor-native-tool-display-state.js";
-import type { Context } from "@earendil-works/pi-ai";
+import type { Context } from "@oh-my-pi/pi-ai"
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -76,7 +76,7 @@ describe("streamCursor native replay live run", () => {
 					type: "tool-call-completed",
 					toolCall: {
 						name: "read",
-						result: { status: "success", value: { content: "# pi-cursor-sdk" } },
+						result: { status: "success", value: { content: "# omp-cursor" } },
 					},
 					callId: "c1",
 				},
@@ -170,7 +170,7 @@ describe("streamCursor native replay live run", () => {
 					type: "tool-call-completed",
 					toolCall: {
 						name: "read",
-						result: { status: "success", value: { content: "# pi-cursor-sdk" } },
+						result: { status: "success", value: { content: "# omp-cursor" } },
 					},
 					callId: "c1",
 				},
@@ -223,9 +223,8 @@ describe("streamCursor native replay live run", () => {
 		const readTool = registeredTools.find((tool) => tool.name === "read");
 		const toolResult = await readTool!.execute(toolCall!.id, toolCall!.arguments, undefined, undefined, createExtensionTestContext());
 		expect(toolResult).toEqual({
-			content: [{ type: "text", text: "# pi-cursor-sdk" }],
+			content: [{ type: "text", text: "# omp-cursor" }],
 			details: undefined,
-			terminate: false,
 		});
 
 		resolveRun({
@@ -282,7 +281,7 @@ describe("streamCursor native replay live run", () => {
 			opts.onDelta({
 				update: {
 					type: "tool-call-completed",
-					toolCall: { name: "read", result: { status: "success", value: { content: "# pi-cursor-sdk" } } },
+					toolCall: { name: "read", result: { status: "success", value: { content: "# omp-cursor" } } },
 					callId: "late-1",
 				},
 			});
@@ -328,7 +327,7 @@ describe("streamCursor native replay live run", () => {
 			firstOnDelta?.({
 				update: {
 					type: "tool-call-completed",
-					toolCall: { name: "read", result: { status: "success", value: { content: "{\"name\":\"pi-cursor-sdk\"}" } } },
+					toolCall: { name: "read", result: { status: "success", value: { content: "{\"name\":\"omp-cursor\"}" } } },
 					callId: "second-1",
 				},
 			});

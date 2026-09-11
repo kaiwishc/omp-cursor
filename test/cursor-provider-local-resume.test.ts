@@ -1,4 +1,4 @@
-import { Type } from "typebox";
+import { Type } from "@oh-my-pi/omptype/typebox"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	asMockCursorRun,

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import {
 	CURSOR_SDK_EVENT_DEBUG_RUN_DIR_ENV,
@@ -42,6 +42,19 @@ export interface CursorSdkEventDebugTurnAllocation {
 
 const sessionDebugStates = new Map<string, CursorSdkEventDebugSessionState>();
 
+const PRIVATE_DEBUG_DIRECTORY_MODE = 0o700;
+const PRIVATE_DEBUG_FILE_MODE = 0o600;
+
+export function ensurePrivateDebugDirectory(path: string): void {
+	mkdirSync(path, { recursive: true, mode: PRIVATE_DEBUG_DIRECTORY_MODE });
+	if (process.platform !== "win32") chmodSync(path, PRIVATE_DEBUG_DIRECTORY_MODE);
+}
+
+export function writePrivateDebugFile(path: string, content: string): void {
+	writeFileSync(path, content, { encoding: "utf8", mode: PRIVATE_DEBUG_FILE_MODE });
+	if (process.platform !== "win32") chmodSync(path, PRIVATE_DEBUG_FILE_MODE);
+}
+
 function sanitizePathSegment(value: string): string {
 	return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "session";
 }
@@ -59,7 +72,7 @@ function resolvePinnedRunArtifactDir(runDirOverride: string | undefined): string
 	const trimmed = runDirOverride?.trim();
 	if (!trimmed) return undefined;
 	const dir = resolve(trimmed);
-	mkdirSync(dir, { recursive: true });
+	ensurePrivateDebugDirectory(dir);
 	return dir;
 }
 
@@ -72,7 +85,7 @@ function readSessionManifest(sessionDir: string): CursorSdkEventDebugSessionMani
 }
 
 function writeSessionManifest(sessionDir: string, manifest: CursorSdkEventDebugSessionManifest): void {
-	writeFileSync(join(sessionDir, SESSION_MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`);
+	writePrivateDebugFile(join(sessionDir, SESSION_MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
 function maxTurnFromManifest(manifest: CursorSdkEventDebugSessionManifest | undefined): number {
@@ -101,7 +114,7 @@ export function allocateCursorSdkEventDebugTurn(
 
 	const scopeKey = getCursorSessionScopeKey();
 	const sessionDir = resolveSessionDebugDir(cwd, env, scopeKey);
-	mkdirSync(sessionDir, { recursive: true });
+	ensurePrivateDebugDirectory(sessionDir);
 
 	let state = sessionDebugStates.get(scopeKey);
 	if (!state || state.sessionDir !== sessionDir) {
@@ -113,7 +126,7 @@ export function allocateCursorSdkEventDebugTurn(
 	state.turnCounter += 1;
 	const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 	const artifactDir = join(sessionDir, `turn-${String(state.turnCounter).padStart(3, "0")}-${stamp}`);
-	mkdirSync(artifactDir, { recursive: true });
+	ensurePrivateDebugDirectory(artifactDir);
 
 	const existing = readSessionManifest(sessionDir);
 	const manifest: CursorSdkEventDebugSessionManifest = existing ?? {

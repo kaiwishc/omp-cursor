@@ -10,7 +10,7 @@ import { getCursorDisplayDetailSummary } from "./helpers/cursor-display-details.
 
 describe("formatCursorToolTranscript bounds and aliases", () => {
 
-	it("normalizes replay-only Cursor edit and write paths for pi display", () => {
+	it("normalizes replay-only Cursor edit and write paths for OMP display", () => {
 		const editDisplay = buildCursorPiToolDisplay(
 			{
 				name: "edit",
@@ -71,7 +71,7 @@ describe("formatCursorToolTranscript bounds and aliases", () => {
 		});
 	});
 
-	it("builds native pi display data for Cursor read and shell calls", () => {
+	it("builds native OMP display data for Cursor read and shell calls", () => {
 		const readDisplay = buildCursorPiToolDisplay({
 			name: "read",
 			args: { path: "README.md" },
@@ -97,7 +97,7 @@ describe("formatCursorToolTranscript bounds and aliases", () => {
 		});
 	});
 
-	it("marks native pi display data for nonzero Cursor shell exits as errors", () => {
+	it("marks native OMP display data for nonzero Cursor shell exits as errors", () => {
 		const shellDisplay = buildCursorPiToolDisplay({
 			name: "shell",
 			args: { command: "printf error >&2; exit 7", timeout: 30000 },
@@ -112,7 +112,7 @@ describe("formatCursorToolTranscript bounds and aliases", () => {
 		});
 	});
 
-	it("marks Cursor shell commands backgrounded by timeout as native pi errors", () => {
+	it("marks Cursor shell commands backgrounded by timeout as native OMP errors", () => {
 		const shellDisplay = buildCursorPiToolDisplay({
 			name: "shell",
 			args: { command: "sleep 2", timeout: 1000 },
@@ -127,7 +127,7 @@ describe("formatCursorToolTranscript bounds and aliases", () => {
 		});
 	});
 
-	it("normalizes native Cursor read display paths and uses pi-like continuation text", () => {
+	it("normalizes native Cursor read display paths and uses OMP-like continuation text", () => {
 		const cwd = "/repo";
 		const content = Array.from({ length: 25 }, (_, index) => `line ${index + 1}`).join("\n");
 		const display = buildCursorPiToolDisplay(
@@ -256,7 +256,7 @@ describe("formatCursorToolTranscript bounds and aliases", () => {
 		}
 	});
 
-	it("maps common Cursor aliases to pi-like command names", () => {
+	it("maps common Cursor aliases to OMP-like command names", () => {
 		const transcript = formatCursorToolTranscript({
 			name: "run_terminal_cmd",
 			args: { command: "pwd" },

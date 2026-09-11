@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SendOptions } from "@cursor/sdk";
-import { AssistantMessageComponent, initTheme } from "@earendil-works/pi-coding-agent";
-import { visibleWidth } from "@earendil-works/pi-tui";
+import { AssistantMessageComponent } from "@oh-my-pi/pi-coding-agent/modes/components/assistant-message";
+import { initTheme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import { visibleWidth } from "@oh-my-pi/pi-tui"
 import { CLOUD_AGENT_ID_PATTERN } from "../shared/cursor-cloud-lifecycle-constants.mjs";
 import { streamCursor } from "../src/cursor-provider.js";
 import {
@@ -147,7 +148,7 @@ describe("cloud provider captured activity callbacks", () => {
 		expect(done.message.content.some(isToolCallBlock)).toBe(false);
 		expect(done.message.content.map((block) => block.type)).not.toContain("toolCall");
 
-		initTheme("dark", false);
+		await initTheme(false, undefined, false, "dark");
 		const renderedLines = new AssistantMessageComponent(done.message).render(RENDER_WIDTH);
 		expect(renderedLines.length).toBeGreaterThan(0);
 		expect(renderedLines.length).toBeLessThan(40);

@@ -1,5 +1,5 @@
-import type { Api, Model } from "@earendil-works/pi-ai";
-import type { ProviderModelConfig } from "@earendil-works/pi-coding-agent";
+import type { Api, Model } from "@oh-my-pi/pi-ai"
+import type { ProviderModelConfig } from "@oh-my-pi/pi-coding-agent"
 
 export function makeModel(id = "test-model"): Model<"cursor-sdk"> {
 	return {
@@ -13,7 +13,7 @@ export function makeModel(id = "test-model"): Model<"cursor-sdk"> {
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 		contextWindow: 128000,
 		maxTokens: 16384,
-	};
+	} as unknown as Model<"cursor-sdk">;
 }
 
 export function makeHarnessModel<TApi extends Api>(
@@ -34,7 +34,7 @@ export function makeHarnessModel<TApi extends Api>(
 		contextWindow: 128000,
 		maxTokens: 16384,
 		...overrides,
-	};
+	} as Model<TApi>;
 }
 
 export function makeProviderModelConfig(

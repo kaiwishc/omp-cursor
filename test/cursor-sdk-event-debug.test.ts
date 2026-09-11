@@ -36,7 +36,7 @@ describe("cursor sdk event debug sink", () => {
 	});
 
 	it("records raw payloads to disk without stderr by default", async () => {
-		const artifactDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-event-debug-"));
+		const artifactDir = mkdtempSync(join(tmpdir(), "omp-cursor-event-debug-"));
 		const stderrLines: string[] = [];
 		const originalWrite = process.stderr.write.bind(process.stderr);
 		process.stderr.write = ((chunk: string | Uint8Array) => {
@@ -120,8 +120,8 @@ describe("cursor sdk event debug sink", () => {
 		}
 	});
 
-	it("snapshots buffered pi stream and timeline records before later mutations", async () => {
-		const artifactDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-event-debug-snapshot-"));
+	it("snapshots buffered OMP stream and timeline records before later mutations", async () => {
+		const artifactDir = mkdtempSync(join(tmpdir(), "omp-cursor-event-debug-snapshot-"));
 
 		try {
 			const sink = CursorSdkEventDebugSink.maybeCreate({
@@ -161,7 +161,7 @@ describe("cursor sdk event debug sink", () => {
 	});
 
 	it("serializes circular and BigInt debug payloads without throwing", async () => {
-		const artifactDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-event-debug-nonthrowing-"));
+		const artifactDir = mkdtempSync(join(tmpdir(), "omp-cursor-event-debug-nonthrowing-"));
 
 		try {
 			const sink = CursorSdkEventDebugSink.maybeCreate({
@@ -205,7 +205,7 @@ describe("cursor sdk event debug sink", () => {
 	});
 
 	it("bounds cumulative JSONL debug artifacts", async () => {
-		const artifactDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-event-debug-bounded-"));
+		const artifactDir = mkdtempSync(join(tmpdir(), "omp-cursor-event-debug-bounded-"));
 
 		try {
 			const sink = CursorSdkEventDebugSink.maybeCreate({
@@ -239,7 +239,7 @@ describe("cursor sdk event debug sink", () => {
 	});
 
 	it("can opt in to stderr summary output", async () => {
-		const artifactDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-event-debug-"));
+		const artifactDir = mkdtempSync(join(tmpdir(), "omp-cursor-event-debug-"));
 		const stderrLines: string[] = [];
 		const originalWrite = process.stderr.write.bind(process.stderr);
 		process.stderr.write = ((chunk: string | Uint8Array) => {
@@ -268,8 +268,8 @@ describe("cursor sdk event debug sink", () => {
 });
 
 describe("cursor sdk event debug session grouping", () => {
-	it("treats a missing pi session snapshot as optional debug data", async () => {
-		const baseDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-event-debug-missing-session-"));
+	it("treats a missing OMP session snapshot as optional debug data", async () => {
+		const baseDir = mkdtempSync(join(tmpdir(), "omp-cursor-event-debug-missing-session-"));
 		const missingSessionFile = join(baseDir, "missing-session.jsonl");
 		const { __testUtils: scopeTestUtils } = await import("../src/cursor-session-scope.js");
 
@@ -302,8 +302,8 @@ describe("cursor sdk event debug session grouping", () => {
 		}
 	});
 
-	it("groups multiple turns under one pi session directory", async () => {
-		const baseDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-event-debug-session-"));
+	it("groups multiple turns under one OMP session directory", async () => {
+		const baseDir = mkdtempSync(join(tmpdir(), "omp-cursor-event-debug-session-"));
 		const sessionFile = join(baseDir, "my-session.jsonl");
 		const { __testUtils: scopeTestUtils } = await import("../src/cursor-session-scope.js");
 
@@ -350,7 +350,7 @@ describe("cursor sdk event debug session grouping", () => {
 	});
 
 	it("keeps pinned run dirs isolated from session grouping", () => {
-		const artifactDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-event-debug-pinned-"));
+		const artifactDir = mkdtempSync(join(tmpdir(), "omp-cursor-event-debug-pinned-"));
 		sdkEventDebugTestUtils.resetSessionDebugState();
 		try {
 			const sink = CursorSdkEventDebugSink.maybeCreate({
@@ -372,7 +372,7 @@ describe("cursor sdk event debug session grouping", () => {
 	});
 
 	it("continues turn numbering after process restart with an existing session manifest", async () => {
-		const baseDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-event-debug-resume-"));
+		const baseDir = mkdtempSync(join(tmpdir(), "omp-cursor-event-debug-resume-"));
 		const sessionFile = join(baseDir, "my-session.jsonl");
 		const { __testUtils: scopeTestUtils } = await import("../src/cursor-session-scope.js");
 
@@ -462,7 +462,7 @@ describe("cursor sdk event debug session grouping", () => {
 	});
 
 	it("clears stale artifacts when reusing a pinned run directory", async () => {
-		const artifactDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-event-debug-reuse-"));
+		const artifactDir = mkdtempSync(join(tmpdir(), "omp-cursor-event-debug-reuse-"));
 		sdkEventDebugTestUtils.resetSessionDebugState();
 
 		try {
@@ -526,7 +526,7 @@ describe("discarded incomplete started tool calls", () => {
 	});
 
 	it("records discarded incomplete started tool calls to coordinator-events.jsonl without stderr by default", async () => {
-		const artifactDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-discarded-debug-"));
+		const artifactDir = mkdtempSync(join(tmpdir(), "omp-cursor-discarded-debug-"));
 		const stderrLines: string[] = [];
 		const originalWrite = process.stderr.write.bind(process.stderr);
 		process.stderr.write = ((chunk: string | Uint8Array) => {

@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,10 +19,9 @@ import { Cursor } from "@cursor/sdk";
 const mockedList = vi.mocked(Cursor.models.list);
 
 function writeStoredCursorApiKey(apiKey: string): void {
-	writeFileSync(
-		join(process.env.PI_CODING_AGENT_DIR!, "auth.json"),
-		JSON.stringify({ "cursor-sdk": { type: "api_key", key: apiKey } }, null, 2),
-	);
+	const path = join(process.env.PI_CODING_AGENT_DIR!, "cursor-sdk.json");
+	writeFileSync(path, JSON.stringify({ apiKey }, null, 2));
+	if (process.platform !== "win32") chmodSync(path, 0o600);
 }
 
 describe("discoverModels model-list cache", () => {

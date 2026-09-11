@@ -16,7 +16,7 @@ const CARD_PATTERNS = [
 		pattern: /^\s*read\s+(?:(?:\.\/)?package\.json|.*[\\/]package\.json)(?:\s+·\s+local file preview)?\s*$/i,
 		wrappedPattern: /^\s*read\s+.*[\\/]package\.(?:json|js\s+on|j\s*son)(?:\s+·\s+local file preview)?\s*$/i,
 	},
-	{ id: "grep", pattern: /^\s*grep \/pi-cursor-sdk\/ in\s+(?:(?:\S+[\\/])?README\.md)\s*$/i },
+	{ id: "grep", pattern: /^\s*grep \/omp-cursor\/ in\s+(?:(?:\S+[\\/])?README\.md)\s*$/i },
 	{ id: "find", pattern: /^\s*find README\.md in\s+\S+/i },
 	{ id: "list", pattern: /^\s*(?:find \* in src|find src\/\* in \.|Get-ChildItem -Name \.\/src)\s*/i },
 	{ id: "shell-success", pattern: /^\s*cursor visual smoke\s*$/i },

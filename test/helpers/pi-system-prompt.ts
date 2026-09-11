@@ -1,4 +1,4 @@
-import type { BuildSystemPromptOptions } from "@earendil-works/pi-coding-agent";
+import type { BuildSystemPromptOptions } from "@oh-my-pi/pi-coding-agent"
 import {
 	PI_PROJECT_INSTRUCTIONS_OPEN_PREFIX,
 	serializePiProjectContextSection,
@@ -12,7 +12,7 @@ export function makeSystemPromptOptions(
 	contextFiles: PiAgentsContextFile[],
 	cwd = "/repo",
 ): BuildSystemPromptOptions {
-	return { cwd, contextFiles, selectedTools: [] };
+	return { cwd, contextFiles };
 }
 
 /** Minimal pi-like system prompt containing only the project_context subset this feature owns. */
@@ -21,7 +21,7 @@ export function buildPiSystemPromptWithContextFiles(
 	cwd = "/repo",
 ): string {
 	let prompt =
-		"You are an expert coding assistant operating inside pi, a coding agent harness.\n\nGuidelines:\n- Be concise in your responses";
+		"You are an expert coding assistant operating inside OMP, a coding agent harness.\n\nGuidelines:\n- Be concise in your responses";
 	prompt += serializePiProjectContextSection(contextFiles);
 	prompt += `\nCurrent date: 2026-01-01\nCurrent working directory: ${cwd}`;
 	return prompt;

@@ -362,7 +362,7 @@ try {
   mkdirSync(join(root, "debug", "sessions", "s1"), { recursive: true });
   writeFileSync(join(root, "sessions", "session.jsonl"), "{}\n");
   writeFileSync(join(root, "debug", "sessions", "s1", "session.json"), JSON.stringify({ payload: "x".repeat(100_000) }) + "\n");
-  writeFileSync(join(root, "runtime-launches.jsonl"), JSON.stringify({ extensionPath: "/packed/node_modules/pi-cursor-sdk" }) + "\n");
+  writeFileSync(join(root, "runtime-launches.jsonl"), JSON.stringify({ extensionPath: "/packed/node_modules/omp-cursor" }) + "\n");
   const payload = buildPlatformArtifactBundle(root, "local-resume-evidence");
   const stdout = formatPlatformArtifactBundle(payload);
   const extracted = extractPlatformArtifactBundle(out, stdout);
@@ -371,7 +371,7 @@ try {
     ok: extracted.ok,
     session: readFileSync(join(out, "local-resume-evidence", "sessions", "session.jsonl"), "utf8") === "{}\n",
     debug: JSON.parse(readFileSync(join(out, "local-resume-evidence", "debug", "sessions", "s1", "session.json"), "utf8")).payload.length === 100_000,
-    packed: runtime.includes("/packed/node_modules/pi-cursor-sdk"),
+    packed: runtime.includes("/packed/node_modules/omp-cursor"),
     boundedLines: Math.max(...stdout.split("\n").map((line) => line.length)) < 32768,
   };
   console.log(JSON.stringify(result));
@@ -710,14 +710,14 @@ if (result.redacted.includes("cursor-secret-token-12345") || result.redacted.inc
 if (result.stripped !== "missing" || result.allowed !== "cursor-secret-token-12345") process.exit(1);
 if (result.ubuntuImage !== "example/node:24") process.exit(1);
 if (result.crabboxMinVersion !== "0.26.0") process.exit(1);
-if (result.windowsVm !== "pi-extension-windows-template" || result.windowsSnapshot !== "crabbox-ready" || result.windowsWorkRoot !== "C:\\crabbox\\pi-cursor-sdk") process.exit(1);
+if (result.windowsVm !== "omp-extension-windows-template" || result.windowsSnapshot !== "crabbox-ready" || result.windowsWorkRoot !== "C:\\crabbox\\omp-cursor") process.exit(1);
 `;
 		const result = run(process.execPath, ["--input-type=module", "-e", code]);
 		expect(result.status).toBe(0);
 		expect(result.stdout).toContain('"stripped":"missing"');
 		expect(result.stdout).toContain('"ubuntuImage":"example/node:24"');
 		expect(result.stdout).toContain('"crabboxMinVersion":"0.26.0"');
-		expect(result.stdout).toContain('"windowsVm":"pi-extension-windows-template"');
+		expect(result.stdout).toContain('"windowsVm":"omp-extension-windows-template"');
 	});
 
 });

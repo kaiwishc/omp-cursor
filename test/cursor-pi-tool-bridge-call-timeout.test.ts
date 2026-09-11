@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { Type } from "typebox";
+import { Type } from "@oh-my-pi/omptype/typebox"
 import {
 	__testUtils,
 	registerCursorPiToolBridge,
@@ -54,7 +54,7 @@ describe("cursor pi tool bridge CallTool deadline", () => {
 			tools: [createBuiltinToolInfo("bash", Type.Object({ command: Type.String() }), "Run shell commands")],
 		});
 		const run = await registerCursorPiToolBridge(pi).createRun();
-		const client = new Client({ name: "pi-cursor-sdk-test", version: "1.0.0" });
+		const client = new Client({ name: "omp-cursor-test", version: "1.0.0" });
 		const transport = new StreamableHTTPClientTransport(new URL(getCursorPiBridgeMcpUrl(run)));
 		await client.connect(transport);
 		try {
@@ -89,7 +89,7 @@ describe("cursor pi tool bridge CallTool deadline", () => {
 			tools: [createBuiltinToolInfo("bash", Type.Object({ command: Type.String() }), "Run shell commands")],
 		});
 		const run = await registerCursorPiToolBridge(pi).createRun();
-		const client = new Client({ name: "pi-cursor-sdk-test", version: "1.0.0" });
+		const client = new Client({ name: "omp-cursor-test", version: "1.0.0" });
 		const transport = new StreamableHTTPClientTransport(new URL(getCursorPiBridgeMcpUrl(run)));
 		await client.connect(transport);
 		try {
@@ -127,7 +127,7 @@ describe("cursor pi tool bridge CallTool deadline", () => {
 			tools: [createBuiltinToolInfo("bash", Type.Object({ command: Type.String() }), "Run shell commands")],
 		});
 		const run = await registerCursorPiToolBridge(pi).createRun();
-		const client = new Client({ name: "pi-cursor-sdk-test", version: "1.0.0" });
+		const client = new Client({ name: "omp-cursor-test", version: "1.0.0" });
 		const transport = new StreamableHTTPClientTransport(new URL(getCursorPiBridgeMcpUrl(run)));
 		await client.connect(transport);
 		try {
@@ -142,7 +142,7 @@ describe("cursor pi tool bridge CallTool deadline", () => {
 				input: request.args,
 			});
 
-			expect(hookResult).toEqual({ block: true, reason: "Cursor pi bridge tool call is no longer pending" });
+			expect(hookResult).toEqual({ block: true, reason: "Cursor OMP bridge tool call is no longer pending" });
 		} finally {
 			await client.close().catch(() => undefined);
 			await transport.close().catch(() => undefined);
@@ -158,7 +158,7 @@ describe("cursor pi tool bridge CallTool deadline", () => {
 		});
 		registerCursorPiToolBridge(pi);
 		const run = await registerCursorPiToolBridge(pi).createRun();
-		const client = new Client({ name: "pi-cursor-sdk-test", version: "1.0.0" });
+		const client = new Client({ name: "omp-cursor-test", version: "1.0.0" });
 		const transport = new StreamableHTTPClientTransport(new URL(getCursorPiBridgeMcpUrl(run)));
 		await client.connect(transport);
 		try {
@@ -182,7 +182,7 @@ describe("cursor pi tool bridge CallTool deadline", () => {
 			expect(run.hasPendingPiToolCallId(request.piToolCallId)).toBe(true);
 
 			await run.resolveToolResultsFromContext({
-				systemPrompt: "",
+				systemPrompt: [""],
 				messages: [
 					{
 						role: "toolResult",
@@ -211,7 +211,7 @@ describe("cursor pi tool bridge CallTool deadline", () => {
 			tools: [createBuiltinToolInfo("bash", Type.Object({ command: Type.String() }), "Run shell commands")],
 		});
 		const run = await registerCursorPiToolBridge(pi).createRun();
-		const client = new Client({ name: "pi-cursor-sdk-test", version: "1.0.0" });
+		const client = new Client({ name: "omp-cursor-test", version: "1.0.0" });
 		const transport = new StreamableHTTPClientTransport(new URL(getCursorPiBridgeMcpUrl(run)));
 		await client.connect(transport);
 		try {

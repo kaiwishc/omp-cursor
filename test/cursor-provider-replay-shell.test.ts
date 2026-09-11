@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Type } from "typebox";
+import { Type } from "@oh-my-pi/omptype/typebox"
 import {
 	resetCursorProviderTestState,
 	mockedCreate,
@@ -35,7 +35,7 @@ import {
 import { streamCursor, __testUtils as cursorProviderTestUtils } from "../src/cursor-provider.js";
 import { estimateCursorPromptMessageTokens } from "../src/context.js";
 import { __testUtils as nativeToolDisplayTestUtils } from "../src/cursor-native-tool-display-state.js";
-import type { Context } from "@earendil-works/pi-ai";
+import type { Context } from "@oh-my-pi/pi-ai"
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -99,7 +99,6 @@ it("uses Cursor shell-output-delta as display-only fallback when completed shell
 		const toolResult = await bashTool!.execute(toolCall!.id, toolCall!.arguments, undefined, undefined, createExtensionTestContext());
 		expect(toolResult).toMatchObject({
 			content: [{ type: "text", text: "background job done" }],
-			terminate: false,
 		});
 
 		resolveRun({ id: "run-1", status: "finished", result: "Done." });

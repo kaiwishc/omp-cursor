@@ -1,8 +1,8 @@
 import type {
 	BuildSystemPromptOptions,
 	ExtensionContext,
-} from "@earendil-works/pi-coding-agent";
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
+} from "@oh-my-pi/pi-coding-agent"
+import { getAgentDir } from "@oh-my-pi/pi-utils/dirs";
 import { parseEnvBoolean } from "./cursor-env-boolean.js";
 import { isCursorModel } from "./cursor-model.js";
 import {
@@ -120,6 +120,22 @@ export function serializePiProjectContextSection(contextFiles: readonly PiAgents
 	return `${PI_PROJECT_CONTEXT_OPEN}${contextFiles.map(serializePiProjectInstructionsBlock).join("")}${PI_PROJECT_CONTEXT_CLOSE}`;
 }
 
+export function parsePiProjectContextFiles(systemPrompt: string): PiAgentsContextFile[] {
+	const files: PiAgentsContextFile[] = [];
+	const patterns = [
+		/<project_instructions path="([^"]*)">\n([\s\S]*?)\n<\/project_instructions>\n\n/g,
+		/<file path="([^"]*)">\n([\s\S]*?)\n<\/file>\n?/g,
+	];
+	for (const pattern of patterns) {
+		for (const match of systemPrompt.matchAll(pattern)) {
+			const path = match[1];
+			const content = match[2];
+			if (path !== undefined && content !== undefined) files.push({ path, content });
+		}
+	}
+	return files;
+}
+
 /** Remove pi context blocks that overlap Cursor setting sources. */
 export function removePiAgentsContextFromSystemPrompt(
 	systemPrompt: string,
@@ -140,7 +156,24 @@ export function removePiAgentsContextFromSystemPrompt(
 
 	const originalSection = serializePiProjectContextSection(contextFiles);
 	const start = systemPrompt.indexOf(originalSection);
-	if (start < 0) return systemPrompt;
+	if (start < 0) {
+		let resolved = systemPrompt;
+		for (const file of contextFiles) {
+			if (!shouldRemovePiAgentsContextFile(file, settingSources, agentDir)) continue;
+			const open = `<file path="${file.path}">\n`;
+			const blockStart = resolved.indexOf(open);
+			if (blockStart < 0) continue;
+			const blockEnd = resolved.indexOf("\n</file>", blockStart);
+			if (blockEnd < 0) continue;
+			let afterBlock = blockEnd + "\n</file>".length;
+			if (resolved[afterBlock] === "\n") afterBlock++;
+			resolved = resolved.slice(0, blockStart) + resolved.slice(afterBlock);
+		}
+		if (retainedContextFiles.length === 0) {
+			resolved = resolved.replace(/(?:^|\n)<repo-rules>[\s\S]*?<\/repo-rules>\n?/, "");
+		}
+		return resolved;
+	}
 
 	const replacementSection = serializePiProjectContextSection(retainedContextFiles);
 	return systemPrompt.slice(0, start) + replacementSection + systemPrompt.slice(start + originalSection.length);

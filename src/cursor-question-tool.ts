@@ -1,6 +1,6 @@
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Text } from "@earendil-works/pi-tui";
-import { Type } from "typebox";
+import type { ExtensionAPI, ExtensionContext } from "@oh-my-pi/pi-coding-agent"
+import { Text } from "@oh-my-pi/pi-tui"
+import { Type } from "@oh-my-pi/omptype/typebox"
 import { arePiToolsDisabled } from "./cursor-active-tools.js";
 import { parseEnvBoolean } from "./cursor-env-boolean.js";
 import { isCursorModel } from "./cursor-model.js";
@@ -14,8 +14,8 @@ export function resolveCursorAskQuestionEnabled(env: Record<string, string | und
 	return parseEnvBoolean(env[CURSOR_ASK_QUESTION_ENV], true);
 }
 
-/** Package-namespaced event while `cursor_ask_question` awaits pi UI input. */
-export const CURSOR_ASK_QUESTION_BLOCKED_EVENT = "pi-cursor-sdk:ask-question:blocked";
+/** Package-namespaced event while `cursor_ask_question` awaits OMP UI input. */
+export const CURSOR_ASK_QUESTION_BLOCKED_EVENT = "omp-cursor:ask-question:blocked";
 
 export interface CursorAskQuestionBlockedEventPayload {
 	active: boolean;
@@ -74,7 +74,7 @@ const QuestionOptionSchema = Type.Union([
 	Type.Object({
 		label: Type.String({ description: "User-facing option label" }),
 		value: Type.Optional(Type.String({ description: "Optional value returned to Cursor; defaults to label" })),
-		description: Type.Optional(Type.String({ description: "Optional helper text shown by compatible pi UIs" })),
+		description: Type.Optional(Type.String({ description: "Optional helper text shown by compatible OMP UIs" })),
 	}),
 ]);
 
@@ -217,13 +217,7 @@ export function registerCursorQuestionTool(pi: CursorQuestionToolExtensionApi): 
 		label: "Cursor question",
 		description:
 			"Ask the user a clarifying question from Cursor. Use when user preferences materially affect the next step; provide options when possible.",
-		promptSnippet: "Ask the user a clarifying question through pi UI when material choices affect Cursor's next step",
-		executionMode: "sequential",
 		parameters: CursorAskQuestionParamsSchema,
-		promptGuidelines: [
-			"Use cursor_ask_question only when running a Cursor model and user input would materially change the plan, scope, platform, or implementation path.",
-			"Prefer cursor_ask_question with 2-4 concrete options instead of guessing when Cursor plan mode needs user choices.",
-		],
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 			const questions = normalizeQuestions(params as CursorAskQuestionParams);
 			if (questions.length === 0) {
@@ -231,7 +225,7 @@ export function registerCursorQuestionTool(pi: CursorQuestionToolExtensionApi): 
 			}
 			if (!ctx.hasUI) {
 				throw new Error(
-					"Cannot ask the user because pi UI is unavailable. Make a reasonable default choice and state the assumption before proceeding.",
+					"Cannot ask the user because OMP UI is unavailable. Make a reasonable default choice and state the assumption before proceeding.",
 				);
 			}
 
@@ -254,7 +248,7 @@ export function registerCursorQuestionTool(pi: CursorQuestionToolExtensionApi): 
 				emitCursorAskQuestionBlockedEvent(pi, { active: false });
 			}
 		},
-		renderCall(args, theme) {
+		renderCall(args, _options, theme) {
 			const questions = normalizeQuestions(args as CursorAskQuestionParams);
 			const label = questions[0]?.question ?? "Ask the user";
 			return new Text(theme.fg("toolTitle", theme.bold("cursor question ")) + theme.fg("muted", label), 0, 0);

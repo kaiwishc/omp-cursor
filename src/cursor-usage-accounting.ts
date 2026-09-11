@@ -1,4 +1,4 @@
-import type { Api, AssistantMessage, Context, Model } from "@earendil-works/pi-ai";
+import type { Api, AssistantMessage, Context, Model } from "@oh-my-pi/pi-ai"
 import {
 	CURSOR_APPROX_CHARS_PER_TOKEN,
 	CURSOR_IMAGE_TOKEN_ESTIMATE,
@@ -23,8 +23,10 @@ export interface CursorSdkTurnUsage {
 }
 
 function getPromptInputTokenBudget(model: Model<Api>): number {
-	const outputReserveTokens = Math.min(model.maxTokens, Math.max(1, Math.floor(model.contextWindow * 0.2)));
-	return Math.max(1, model.contextWindow - outputReserveTokens);
+	const maxTokens = model.maxTokens ?? Number.MAX_SAFE_INTEGER;
+	const contextWindow = model.contextWindow ?? Number.MAX_SAFE_INTEGER;
+	const outputReserveTokens = Math.min(maxTokens, Math.max(1, Math.floor(contextWindow * 0.2)));
+	return Math.max(1, contextWindow - outputReserveTokens);
 }
 
 export function getCursorPromptOptions(model: Model<Api>): CursorUsagePromptOptions {
@@ -98,14 +100,14 @@ export function isCursorSdkUsagePartitionSafe(turnUsage: CursorSdkTurnUsage, mod
 		counts.every((count) => Number.isFinite(count) && count >= 0) &&
 		Number.isFinite(uncachedInput) &&
 		uncachedInput >= 0 &&
-		turnUsage.outputTokens <= model.maxTokens
+		turnUsage.outputTokens <= (model.maxTokens ?? Number.MAX_SAFE_INTEGER)
 	);
 }
 
 export function isCursorSdkUsageSafeForPiMessage(turnUsage: CursorSdkTurnUsage, model: Model<Api>): boolean {
 	return (
 		isCursorSdkUsagePartitionSafe(turnUsage, model) &&
-		turnUsage.inputTokens + turnUsage.outputTokens <= model.contextWindow
+		turnUsage.inputTokens + turnUsage.outputTokens <= (model.contextWindow ?? Number.MAX_SAFE_INTEGER)
 	);
 }
 
@@ -116,7 +118,7 @@ export interface CursorSdkUsageApplyOptions {
 }
 
 export function applyCursorSdkUsage(partial: AssistantMessage, turnUsage: CursorSdkTurnUsage): void {
-	// Pi treats input/cacheRead/cacheWrite as disjoint additive prompt components.
+	// OMP treats input/cacheRead/cacheWrite as disjoint additive prompt components.
 	partial.usage.input = getCursorSdkUncachedInputTokens(turnUsage);
 	partial.usage.output = turnUsage.outputTokens;
 	partial.usage.cacheRead = turnUsage.cacheReadTokens;
@@ -154,7 +156,7 @@ function getLastAcceptedContextOccupancy(context: Context, model: Model<Api>): n
 		const { usage } = assistant;
 		const total =
 			usage.totalTokens || usage.input + usage.output + usage.cacheRead + usage.cacheWrite;
-		if (!Number.isFinite(total) || total <= 0 || total > model.contextWindow) continue;
+		if (!Number.isFinite(total) || total <= 0 || total > (model.contextWindow ?? Number.MAX_SAFE_INTEGER)) continue;
 		if (boundary?.tokensBefore !== undefined && total >= boundary.tokensBefore) continue;
 		return total;
 	}

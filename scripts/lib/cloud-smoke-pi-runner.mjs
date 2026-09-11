@@ -15,8 +15,8 @@ import {
 
 export function createCloudSmokePiRunner({ root, model, shutdown, buildEnv, buildWorkspace }) {
 	const findPiBin = () => {
-		const local = join(root, "node_modules", ".bin", process.platform === "win32" ? "pi.cmd" : "pi");
-		return existsSync(local) ? local : process.platform === "win32" ? "pi.cmd" : "pi";
+		const local = join(root, "node_modules", ".bin", process.platform === "win32" ? "omp.cmd" : "omp");
+		return existsSync(local) ? local : process.platform === "win32" ? "omp.cmd" : "omp";
 	};
 
 	const spawnPi = (artifactDir, args, envOptions, stdio) => {
@@ -34,7 +34,7 @@ export function createCloudSmokePiRunner({ root, model, shutdown, buildEnv, buil
 		shutdown.throwIfRequested();
 		const child = spawnPi(
 			artifactDir,
-			(sessionDir) => ["-e", root, "--model", model, "--approve", "--session-dir", sessionDir, "--session-id", sessionId, "-p", message],
+			(sessionDir) => ["-e", root, "--model", model, "--auto-approve", "--session-dir", sessionDir, "-p", message],
 			envOptions,
 			["ignore", "pipe", "pipe"],
 		);
@@ -70,10 +70,10 @@ export function createCloudSmokePiRunner({ root, model, shutdown, buildEnv, buil
 				void timeoutTermination.then(
 					() => shutdown.signal.aborted
 						? onShutdown()
-						: settle(rejectRun, new Error(`pi cloud smoke timed out after ${timeoutMs}ms`)),
+						: settle(rejectRun, new Error(`OMP cloud smoke timed out after ${timeoutMs}ms`)),
 					(error) => shutdown.signal.aborted
 						? onShutdown()
-						: settle(rejectRun, new Error(`pi cloud smoke timed out and cleanup failed: ${error instanceof Error ? error.message : String(error)}`, { cause: error })),
+						: settle(rejectRun, new Error(`OMP cloud smoke timed out and cleanup failed: ${error instanceof Error ? error.message : String(error)}`, { cause: error })),
 				);
 			}, timeoutMs);
 			shutdown.signal.addEventListener("abort", onShutdown, { once: true });
@@ -96,11 +96,14 @@ export function createCloudSmokePiRunner({ root, model, shutdown, buildEnv, buil
 		});
 	};
 
-	const startRpc = async ({ artifactDir, contextHandoff = "fresh", sessionId, envOptions = {} }) => {
+	const startRpc = async ({ artifactDir, contextHandoff = "fresh", sessionId, continueSession = false, envOptions = {} }) => {
 		shutdown.throwIfRequested();
 		const child = spawnPi(
 			artifactDir,
-			(sessionDir) => ["--mode", "rpc", "-e", root, "--model", model, "--approve", "--session-dir", sessionDir, "--session-id", sessionId],
+			(sessionDir) => [
+				"--mode", "rpc", "-e", root, "--model", model, "--auto-approve", "--session-dir", sessionDir,
+				...(continueSession ? ["--continue"] : []),
+			],
 			{ contextHandoff, ...envOptions },
 			["pipe", "pipe", "pipe"],
 		);

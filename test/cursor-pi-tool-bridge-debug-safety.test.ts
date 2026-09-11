@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { Type } from "typebox";
+import { Type } from "@oh-my-pi/omptype/typebox"
 import type { CursorSdkEventDebugRecorder } from "../src/cursor-sdk-event-debug.js";
 import {
 	__testUtils,
@@ -36,14 +36,14 @@ describe("cursor pi tool bridge debug safety", () => {
 			finalize: vi.fn(),
 		};
 		const run = await registry.createRun({ debugRecorder });
-		const client = new Client({ name: "pi-cursor-sdk-test", version: "1.0.0" });
+		const client = new Client({ name: "omp-cursor-test", version: "1.0.0" });
 		const transport = new StreamableHTTPClientTransport(new URL(getCursorPiBridgeMcpUrl(run)));
 		await client.connect(transport);
 		try {
 			const callPromise = client.callTool({ name: "pi__read", arguments: { path: "README.md" } });
 			const request = await waitForQueuedRequest(run);
 			await run.resolveToolResultsFromContext({
-				systemPrompt: "",
+					systemPrompt: [""],
 				messages: [{
 					role: "toolResult",
 					toolCallId: request.piToolCallId,

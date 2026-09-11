@@ -1,4 +1,4 @@
-import type { ExtensionAPI, ProviderConfig, ProviderModelConfig } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ProviderConfig, ProviderModelConfig } from "@oh-my-pi/pi-coding-agent"
 import { discoverModels, type CursorModelFallbackIssue } from "./model-discovery.js";
 import { registerCursorRuntimeControls } from "./cursor-state.js";
 import { registerCursorNativeToolDisplay } from "./cursor-native-tool-display-registration.js";
@@ -11,12 +11,12 @@ import { registerCursorSessionAgentLineage } from "./cursor-session-agent-lineag
 import { registerCursorSessionAgentResume } from "./cursor-session-agent-resume.js";
 import { streamCursorLazy } from "./cursor-provider-lazy.js";
 import { CURSOR_PROVIDER } from "./cursor-model.js";
-import { CURSOR_API_KEY_CONFIG_VALUE, resolveCursorApiKey } from "./cursor-api-key.js";
+import { CURSOR_API_KEY_CONFIG_VALUE, resolveCursorRuntimeApiKey } from "./cursor-api-key.js";
 import { registerCursorFallbackIssueWarning } from "./cursor-fallback-warning.js";
 import { registerCursorAgentsContextDedup } from "./cursor-agents-context-registration.js";
-import { registerCursorOverflowNormalization } from "./cursor-provider-overflow.js";
 import { registerCursorSdkSessionProcessErrorGuard } from "./cursor-sdk-process-error-guard.js";
 import { prepareCursorSessionForCompaction } from "./cursor-session-compaction-prep.js";
+import { installCursorProxyTransport } from "./cursor-proxy.js";
 
 type CursorExtensionApi =
 	& Pick<ExtensionAPI, "registerProvider" | "registerCommand" | "on">
@@ -31,12 +31,10 @@ type CursorExtensionApi =
 	& Parameters<typeof registerCursorPiToolBridge>[0]
 	& Parameters<typeof registerCursorFallbackIssueWarning>[0]
 	& Parameters<typeof registerCursorAgentsContextDedup>[0]
-	& Parameters<typeof registerCursorOverflowNormalization>[0]
 	& Parameters<typeof registerCursorSdkSessionProcessErrorGuard>[0];
 
 function createCursorProviderConfig(models: ProviderModelConfig[]): ProviderConfig {
 	return {
-		name: "Cursor",
 		baseUrl: "https://cursor.com",
 		apiKey: CURSOR_API_KEY_CONFIG_VALUE,
 		api: "cursor-sdk",
@@ -64,7 +62,16 @@ export default async function (pi: CursorExtensionApi) {
 	registerCursorSkillTool(pi);
 	registerCursorPiToolBridge(pi);
 	registerCursorAgentsContextDedup(pi);
-	registerCursorOverflowNormalization(pi);
+	let proxyInstallError: Error | undefined;
+	installCursorProxyTransport((error) => {
+		proxyInstallError = error;
+	});
+	if (proxyInstallError) {
+		const message = proxyInstallError.message;
+		pi.on("session_start", (_event, ctx) => {
+			if (ctx.hasUI) ctx.ui.notify(`Cursor proxy disabled: ${message}`, "warning");
+		});
+	}
 	let fallbackIssue: CursorModelFallbackIssue | undefined;
 	const models = await discoverModels({
 		onFallback: (issue) => {
@@ -77,10 +84,10 @@ export default async function (pi: CursorExtensionApi) {
 	}
 
 	pi.registerCommand("cursor-refresh-models", {
-		description: "Refresh the live Cursor model catalog without restarting pi",
+		description: "Refresh the live Cursor model catalog without restarting OMP",
 		handler: async (_args, ctx) => {
 			let refreshFallbackIssue: CursorModelFallbackIssue | undefined;
-			const apiKey = resolveCursorApiKey(await ctx.modelRegistry.getApiKeyForProvider(CURSOR_PROVIDER));
+			const apiKey = await resolveCursorRuntimeApiKey(await ctx.modelRegistry.getApiKeyForProvider(CURSOR_PROVIDER));
 			const refreshedModels = await discoverModels({
 				apiKey,
 				forceRefresh: true,

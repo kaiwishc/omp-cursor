@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { Context } from "@earendil-works/pi-ai";
+import type { Context } from "@oh-my-pi/pi-ai"
 import { computeCursorContextFingerprint } from "../src/context.js";
 import {
 	buildCursorSessionSendPrompt,
@@ -89,7 +89,7 @@ describe("cursor-session-send-policy", () => {
 
 	it("builds bootstrap and incremental prompts from the send plan", () => {
 		const context: Context = {
-			systemPrompt: "Be helpful.",
+			systemPrompt: ["Be helpful."],
 			messages: [{ role: "user", content: "Follow up", timestamp: 3 }],
 		};
 		const bootstrapPrompt = buildCursorSessionSendPrompt(context, {}, {

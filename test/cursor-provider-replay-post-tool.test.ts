@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Type } from "typebox";
+import { Type } from "@oh-my-pi/omptype/typebox"
 import {
 	resetCursorProviderTestState,
 	mockedCreate,
@@ -35,7 +35,7 @@ import {
 import { streamCursor, __testUtils as cursorProviderTestUtils } from "../src/cursor-provider.js";
 import { estimateCursorPromptMessageTokens } from "../src/context.js";
 import { __testUtils as nativeToolDisplayTestUtils } from "../src/cursor-native-tool-display-state.js";
-import type { AssistantMessageEvent, Context } from "@earendil-works/pi-ai";
+import type { AssistantMessageEvent, Context } from "@oh-my-pi/pi-ai"
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -65,7 +65,7 @@ it("streams post-tool Cursor thinking and text while a native replay run is stil
 					type: "tool-call-completed",
 					toolCall: {
 						name: "read",
-						result: { status: "success", value: { content: "# pi-cursor-sdk" } },
+						result: { status: "success", value: { content: "# omp-cursor" } },
 					},
 					callId: "c1",
 				},
@@ -165,7 +165,7 @@ it("streams post-tool Cursor thinking and text while a native replay run is stil
 					type: "tool-call-completed",
 					toolCall: {
 						name: "read",
-						result: { status: "success", value: { content: "# pi-cursor-sdk" } },
+						result: { status: "success", value: { content: "# omp-cursor" } },
 					},
 					callId: "c1",
 				},
@@ -255,7 +255,7 @@ it("streams post-tool Cursor thinking and text while a native replay run is stil
 					type: "tool-call-completed",
 					toolCall: {
 						name: "read",
-						result: { status: "success", value: { content: "# pi-cursor-sdk" } },
+						result: { status: "success", value: { content: "# omp-cursor" } },
 					},
 					callId: "c1",
 				},
@@ -355,7 +355,7 @@ it("streams post-tool Cursor thinking and text while a native replay run is stil
 					type: "tool-call-completed",
 					toolCall: {
 						name: "read",
-						result: { status: "success", value: { content: "# pi-cursor-sdk" } },
+						result: { status: "success", value: { content: "# omp-cursor" } },
 					},
 					callId: "c1",
 				},
@@ -496,7 +496,7 @@ it("streams post-tool Cursor thinking and text while a native replay run is stil
 					type: "tool-call-completed",
 					toolCall: {
 						name: "read",
-						result: { status: "success", value: { content: "# pi-cursor-sdk" } },
+						result: { status: "success", value: { content: "# omp-cursor" } },
 					},
 					callId: "c1",
 				},
@@ -544,7 +544,7 @@ it("streams post-tool Cursor thinking and text while a native replay run is stil
 				type: "tool-call-completed",
 				toolCall: {
 					name: "read",
-					result: { status: "success", value: { content: "import type { ExtensionAPI } from \"@earendil-works/pi-coding-agent\";" } },
+					result: { status: "success", value: { content: "import type { ExtensionAPI } from \"@oh-my-pi/pi-coding-agent\";" } },
 				},
 				callId: "c2",
 			},

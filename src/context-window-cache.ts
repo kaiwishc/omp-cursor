@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { BUNDLED_CONTEXT_WINDOWS } from "./bundled-context-windows.js";
+import { getCursorSdkAgentDir } from "./cursor-config.js";
 import { asRecord } from "./cursor-record-utils.js";
 
 const CONTEXT_WINDOW_CACHE_FILE = "cursor-sdk-context-windows.json";
@@ -12,7 +12,7 @@ interface ContextWindowCacheFile {
 }
 
 function getCachePath(): string {
-	return join(getAgentDir(), CONTEXT_WINDOW_CACHE_FILE);
+	return join(getCursorSdkAgentDir(), CONTEXT_WINDOW_CACHE_FILE);
 }
 
 function isPositiveInteger(value: unknown): value is number {

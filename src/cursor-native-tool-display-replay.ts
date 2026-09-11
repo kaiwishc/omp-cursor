@@ -1,8 +1,12 @@
 import { readFileSync, statSync } from "node:fs";
 import { basename } from "node:path";
-import { getLanguageFromPath, highlightCode, keyHint, type ToolDefinition } from "@earendil-works/pi-coding-agent";
-import { Image, Text, type Component } from "@earendil-works/pi-tui";
-import { Type } from "typebox";
+import { getLanguageFromPath } from "@oh-my-pi/pi-coding-agent/utils/lang-from-path";
+import { keyHint } from "@oh-my-pi/pi-coding-agent/modes/components/keybinding-hints";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { highlightCode } from "@oh-my-pi/pi-coding-agent/modes/theme/tui-adapters";
+import type { ToolDefinition } from "@oh-my-pi/pi-coding-agent";
+import { Image, Text, type Component } from "@oh-my-pi/pi-tui"
+import { Type } from "@oh-my-pi/omptype/typebox"
 import { resolveCursorEditDiff } from "./cursor-edit-diff.js";
 import { inferImageMimeType } from "./cursor-tool-result-display-readers.js";
 import { LOCAL_READ_PREVIEW_NOTICE, isLocalReadPreviewContent } from "./cursor-transcript-utils.js";
@@ -48,7 +52,15 @@ export const cursorReplayToolSchema = Type.Object({}, { additionalProperties: tr
 
 type CursorReplayRenderCall = NonNullable<ToolDefinition<typeof cursorReplayToolSchema, unknown>["renderCall"]>;
 type CursorReplayRenderResult = NonNullable<ToolDefinition<typeof cursorReplayToolSchema, unknown>["renderResult"]>;
-export type CursorReplayRenderTheme = Parameters<CursorReplayRenderCall>[1];
+export type CursorReplayRenderTheme = Parameters<CursorReplayRenderCall>[2];
+
+function shouldShowCursorReplayImages(): boolean {
+	try {
+		return Settings.instance.get("terminal.showImages");
+	} catch {
+		return true;
+	}
+}
 
 function readImageFileForReplay(path: string | undefined): string | undefined {
 	if (!path) return undefined;
@@ -438,7 +450,6 @@ function renderExpandableCursorReplayResult(
 	result: Parameters<CursorReplayRenderResult>[0],
 	options: Parameters<CursorReplayRenderResult>[1],
 	theme: Parameters<CursorReplayRenderResult>[2],
-	context: Parameters<CursorReplayRenderResult>[3],
 	isError: boolean,
 ): Component {
 	const text = firstContentText(result);
@@ -457,10 +468,10 @@ function renderExpandableCursorReplayResult(
 		);
 		if (preview) rendered += `\n${preview}`;
 	}
-	if (details.imagePath && !isError && context.showImages) {
+	if (details.imagePath && !isError && shouldShowCursorReplayImages()) {
 		const imageData = readImageFileForReplay(details.imagePath);
 		const mimeType = details.imageMimeType ?? inferImageMimeType(details.imagePath);
-		if (imageData && mimeType) return buildImageReplayComponent(rendered, imageData, mimeType, basename(details.imagePath ?? "generated-image"), theme);
+		if (imageData && mimeType) return buildImageReplayComponent(rendered, imageData, mimeType, basename(details.imagePath), theme);
 	}
 	return new Text(rendered, 0, 0);
 }
@@ -506,11 +517,10 @@ function renderCursorGenerateImageResult(
 	result: Parameters<CursorReplayRenderResult>[0],
 	options: Parameters<CursorReplayRenderResult>[1],
 	theme: Parameters<CursorReplayRenderResult>[2],
-	context: Parameters<CursorReplayRenderResult>[3],
 	isError: boolean,
 ): Component {
 	const title = CURSOR_REPLAY_GENERATE_IMAGE_RESULT_TITLE;
-	return renderExpandableCursorReplayResult(title, details, result, options, theme, context, isError);
+	return renderExpandableCursorReplayResult(title, details, result, options, theme, isError);
 }
 
 function renderCursorReplayDetails(
@@ -518,7 +528,6 @@ function renderCursorReplayDetails(
 	result: Parameters<CursorReplayRenderResult>[0],
 	options: Parameters<CursorReplayRenderResult>[1],
 	theme: Parameters<CursorReplayRenderResult>[2],
-	context: Parameters<CursorReplayRenderResult>[3],
 	isError: boolean,
 	text: string,
 ): Component {
@@ -528,9 +537,9 @@ function renderCursorReplayDetails(
 		case "nativeWrite":
 			return renderCursorReplayWriteResult(details, result, theme);
 		case "generateImage":
-			return renderCursorGenerateImageResult(details, result, options, theme, context, isError);
+			return renderCursorGenerateImageResult(details, result, options, theme, isError);
 		case "activity":
-			return renderExpandableCursorReplayResult(details.title, details, result, options, theme, context, isError);
+			return renderExpandableCursorReplayResult(details.title, details, result, options, theme, isError);
 		case "genericFallback":
 			break;
 		default: {
@@ -545,34 +554,30 @@ export function renderCursorReplayResult(
 	result: Parameters<CursorReplayRenderResult>[0],
 	options: Parameters<CursorReplayRenderResult>[1],
 	theme: Parameters<CursorReplayRenderResult>[2],
-	context: Parameters<CursorReplayRenderResult>[3],
-	isError: boolean,
 ): Component {
 	if (options.isPartial) return new Text(theme.fg("warning", "Replaying Cursor tool result..."), 0, 0);
 	const details = parseCursorReplayToolDetails(result.details);
 	const text = firstContentText(result);
+	const isError = result.isError === true;
 	if (isError && !hasCursorReplayDisplayTitle(details)) {
 		return new Text(theme.fg("error", text.split("\n")[0] || "Cursor replay failed"), 0, 0);
 	}
 	if (!details) return new Text(text || theme.fg("success", "Cursor tool result replayed"), 0, 0);
-	return renderCursorReplayDetails(details, result, options, theme, context, isError, text);
+	return renderCursorReplayDetails(details, result, options, theme, isError, text);
 }
 
 export function renderNativeLookingCursorReadReplayResult(
 	result: Parameters<CursorReplayRenderResult>[0],
 	options: Parameters<CursorReplayRenderResult>[1],
 	theme: Parameters<CursorReplayRenderResult>[2],
-	context: Parameters<CursorReplayRenderResult>[3],
 	renderBase: () => Component | undefined,
 ): Component {
 	const base = renderBase?.() ?? new Text("", 0, 0);
-	const readArgs = context.args as Record<string, unknown> | undefined;
 	const replayDetails = result.details as Record<string, unknown> | undefined;
 	const usesLocalPreview =
-		readArgs?.localReadPreview === true ||
 		replayDetails?.localReadPreview === true ||
 		isLocalReadPreviewContent(firstContentText(result));
-	if (usesLocalPreview && !options.expanded && !context.isError) {
+	if (usesLocalPreview && !options.expanded && !result.isError) {
 		const noticeText = `\n${theme.fg("warning", LOCAL_READ_PREVIEW_NOTICE)}`;
 		if (base instanceof Text) {
 			base.setText(noticeText);
@@ -592,11 +597,11 @@ export function createCursorReplayOnlyToolDefinition(toolName: CursorReplayToolN
 		async execute() {
 			throw new Error("No recorded Cursor activity result was available. This replay-only tool does not execute work directly.");
 		},
-		renderCall(args, theme, context) {
-			return renderCursorReplayCall(toolName, args as Record<string, unknown>, theme, context.isPartial);
+		renderCall(args, options, theme) {
+			return renderCursorReplayCall(toolName, args as Record<string, unknown>, theme, options.isPartial);
 		},
-		renderResult(result, options, theme, context) {
-			return renderCursorReplayResult(result, options, theme, context, context.isError);
+		renderResult(result, options, theme) {
+			return renderCursorReplayResult(result, options, theme);
 		},
 	};
 }

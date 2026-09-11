@@ -1,4 +1,4 @@
-import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@oh-my-pi/pi-coding-agent"
 import {
 	registerCursorCloudLifecycleLedger,
 	runCursorCloudLifecycleCommand,
@@ -42,8 +42,8 @@ export const CURSOR_RUNTIME_ENTRY_TYPE = "cursor-runtime-state";
 
 export const CURSOR_CLOUD_ACK_DISCLOSURE = [
 	"Cursor Cloud executes this work remotely.",
-	"Fresh context is used by default; prior Pi context is included only with explicit bootstrap opt-in.",
-	"Pi-local tools and the Pi bridge are unavailable, and Pi environment variables are not forwarded.",
+	"Fresh context is used by default; prior OMP context is included only with explicit bootstrap opt-in.",
+	"OMP-local tools and the OMP bridge are unavailable, and OMP environment variables are not forwarded.",
 	"Cursor may create branches, commit, push, and open pull requests.",
 	"Cloud agents remain until you archive or delete them.",
 	"Cloud Agents run in Max Mode, are billed at Cursor API pricing, and may require spend-limit setup.",
@@ -394,7 +394,7 @@ function registerCursorRuntimeCommand(
 			}
 			if (saveProject && (getCursorSessionCwd() !== ctx.cwd || !getCursorSessionProjectTrusted())) {
 				ctx.ui.notify(
-					"Cannot save Cursor project config without explicit project-trust provenance. Ensure .pi/settings.json or another Pi project resource exists, trust the project, then restart pi; or restart with --approve. Project-local package installs must use --approve on every run that reads or writes .pi/cursor-sdk.json.",
+					"Cannot save Cursor project config without explicit project-trust provenance. Ensure .omp/settings.json or another OMP project resource exists, trust the project, then restart OMP; or restart with --auto-approve. Project-local package installs must use --auto-approve on every run that reads or writes .omp/cursor-sdk.json.",
 					"error",
 				);
 				return;
@@ -413,12 +413,15 @@ function registerCursorRuntimeCommand(
 								runtime: raw,
 								...(cloudAcknowledged ? { cloud: { acknowledged: true } } : {}),
 							}),
-							{ newFileMode: 0o600 },
+							{ newFileMode: 0o600, forceMode: 0o600 },
 						);
 					} else {
 						updateCursorSdkConfig(
 							getCursorSdkProjectConfigPath(ctx.cwd),
-							(current) => mergeCursorSdkConfigForUpdate(current, { runtime: raw }),
+							(current) => {
+								const { apiKey: _apiKey, ...projectConfig } = current;
+								return mergeCursorSdkConfigForUpdate(projectConfig, { runtime: raw });
+							},
 						);
 					}
 				} catch (error) {

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import { getCursorSdkAgentDir } from "./cursor-config.js";
 import type { ModelListItem } from "@cursor/sdk";
 import { parseEnvBoolean } from "./cursor-env-boolean.js";
 import { asRecord } from "./cursor-record-utils.js";
@@ -26,7 +26,7 @@ export interface CachedModelList {
 }
 
 function getCachePath(): string {
-	return join(getAgentDir(), MODEL_LIST_CACHE_FILE);
+	return join(getCursorSdkAgentDir(), MODEL_LIST_CACHE_FILE);
 }
 
 export function isModelCacheDisabled(): boolean {

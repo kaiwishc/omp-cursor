@@ -32,8 +32,8 @@ function isTypeOnlyExport(node: ts.ExportDeclaration, isJavaScript: boolean): bo
 		: node.exportClause.elements.every((element) => element.isTypeOnly);
 }
 
-const PI_HOST_PEER_PREFIXES = ["@earendil-works/pi-", "@mariozechner/pi-"] as const;
-const PI_HOST_PEER_ROOTS = ["@sinclair/typebox", "typebox"] as const;
+const PI_HOST_PEER_PREFIXES = ["@earendil-works/pi-", "@mariozechner/pi-", "@oh-my-pi/pi-"] as const;
+const PI_HOST_PEER_ROOTS = ["@sinclair/typebox", "typebox", "@oh-my-pi/omptype"] as const;
 
 function isPiHostPeer(specifier: string): boolean {
 	return (
@@ -413,7 +413,7 @@ describe("Cursor SDK lazy runtime imports", () => {
 	});
 
 	it("rejects static SDK subpaths and template SDK imports outside the runtime loaders", () => {
-		tmpAgentDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-sdk-edge-"));
+		tmpAgentDir = mkdtempSync(join(tmpdir(), "omp-cursor-edge-"));
 		const fixturePath = join(tmpAgentDir, "sdk-edge.ts");
 		writeFileSync(fixturePath, [
 			'import { open } from "@cursor/sdk/sqlite";',
@@ -437,7 +437,7 @@ describe("Cursor SDK lazy runtime imports", () => {
 	});
 
 	it("scans ESM and TSX sources and rejects CommonJS TypeScript", () => {
-		tmpAgentDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-source-extensions-"));
+		tmpAgentDir = mkdtempSync(join(tmpdir(), "omp-cursor-source-extensions-"));
 		const srcDir = join(tmpAgentDir, "src");
 		mkdirSync(srcDir);
 		writeFileSync(join(srcDir, "entry.mts"), 'void import("./target.mjs");\n');
@@ -453,7 +453,7 @@ describe("Cursor SDK lazy runtime imports", () => {
 	});
 
 	it("scans shared JavaScript and rejects shared CommonJS", () => {
-		tmpAgentDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-shared-extensions-"));
+		tmpAgentDir = mkdtempSync(join(tmpdir(), "omp-cursor-shared-extensions-"));
 		const srcDir = join(tmpAgentDir, "src");
 		const sharedDir = join(tmpAgentDir, "shared");
 		mkdirSync(srcDir);
@@ -468,12 +468,12 @@ describe("Cursor SDK lazy runtime imports", () => {
 		expect(findings).toContain("CommonJS .cjs shared runtime is unsupported by the host-peer guard");
 	});
 
-	it("keeps native loaders away from Pi host peers", () => {
+	it("keeps native loaders away from legacy host peers", () => {
 		expect(collectUnsafeHostPeerLoads()).toEqual([]);
 	});
 
 	it("allows type-only import-equals for both Node module spellings", () => {
-		tmpAgentDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-type-import-equals-"));
+		tmpAgentDir = mkdtempSync(join(tmpdir(), "omp-cursor-type-import-equals-"));
 		const fixturePath = join(tmpAgentDir, "type-import-equals.ts");
 		writeFileSync(fixturePath, [
 			'import type NodeModule = require("node:module");',
@@ -487,7 +487,7 @@ describe("Cursor SDK lazy runtime imports", () => {
 	});
 
 	it("rejects direct require use in the canonical resolve-only loader", () => {
-		tmpAgentDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-native-require-"));
+		tmpAgentDir = mkdtempSync(join(tmpdir(), "omp-cursor-native-require-"));
 		const srcDir = join(tmpAgentDir, "src");
 		const sharedDir = join(tmpAgentDir, "shared");
 		mkdirSync(srcDir);
@@ -507,7 +507,7 @@ describe("Cursor SDK lazy runtime imports", () => {
 	});
 
 	it("rejects aliases of the canonical native loader", () => {
-		tmpAgentDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-native-require-alias-"));
+		tmpAgentDir = mkdtempSync(join(tmpdir(), "omp-cursor-native-require-alias-"));
 		const entryPath = join(tmpAgentDir, "cursor-ripgrep-path.ts");
 		writeFileSync(entryPath, [
 			'import { createRequire } from "node:module";',
@@ -521,7 +521,7 @@ describe("Cursor SDK lazy runtime imports", () => {
 	});
 
 	it("allows canonical loader names in erased type queries", () => {
-		tmpAgentDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-native-loader-types-"));
+		tmpAgentDir = mkdtempSync(join(tmpdir(), "omp-cursor-native-loader-types-"));
 		const entryPath = join(tmpAgentDir, "cursor-ripgrep-path.ts");
 		writeFileSync(entryPath, [
 			'import { createRequire } from "node:module";',
@@ -535,7 +535,7 @@ describe("Cursor SDK lazy runtime imports", () => {
 	});
 
 	it("rejects noncanonical imports in the canonical native loader", () => {
-		tmpAgentDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-native-import-attributes-"));
+		tmpAgentDir = mkdtempSync(join(tmpdir(), "omp-cursor-native-import-attributes-"));
 		const entryPath = join(tmpAgentDir, "cursor-ripgrep-path.ts");
 		writeFileSync(entryPath, [
 			'import { createRequire } from "node:module" with {};',
@@ -557,7 +557,7 @@ describe("Cursor SDK lazy runtime imports", () => {
 	});
 
 	it("ignores declaration files and ambient module names", () => {
-		tmpAgentDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-declarations-"));
+		tmpAgentDir = mkdtempSync(join(tmpdir(), "omp-cursor-declarations-"));
 		const srcDir = join(tmpAgentDir, "src");
 		mkdirSync(srcDir);
 		const ambientPath = join(srcDir, "ambient.ts");
@@ -573,8 +573,8 @@ describe("Cursor SDK lazy runtime imports", () => {
 		expect(collectUnsafeHostPeerLoads(sourceFiles(srcDir))).toEqual([]);
 	});
 
-	it("fails closed for Pi package prefixes, CommonJS loaders, nested shared modules, and unresolved edges", () => {
-		tmpAgentDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-import-graph-"));
+	it("fails closed for legacy host package prefixes, CommonJS loaders, nested shared modules, and unresolved edges", () => {
+		tmpAgentDir = mkdtempSync(join(tmpdir(), "omp-cursor-import-graph-"));
 		const srcDir = join(tmpAgentDir, "src");
 		const sharedDir = join(tmpAgentDir, "shared");
 		const nestedSharedDir = join(sharedDir, "nested");
@@ -639,7 +639,7 @@ describe("Cursor SDK lazy runtime imports", () => {
 	});
 
 	it("serves a warm model catalog without evaluating @cursor/sdk", async () => {
-		tmpAgentDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-lazy-import-"));
+		tmpAgentDir = mkdtempSync(join(tmpdir(), "omp-cursor-lazy-import-"));
 		process.env = { ...originalEnv, PI_CODING_AGENT_DIR: tmpAgentDir, CURSOR_API_KEY: "warm-cache-key" };
 		const model: ModelListItem = {
 			id: "composer-2",
@@ -658,12 +658,12 @@ describe("Cursor SDK lazy runtime imports", () => {
 	});
 
 	it("loads the installed SDK checkpoint store without the old root sqlite dependency", async () => {
-		tmpAgentDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-checkpoint-contract-"));
+		tmpAgentDir = mkdtempSync(join(tmpdir(), "omp-cursor-checkpoint-contract-"));
 		const { loadCursorSdk } = await import("../src/cursor-sdk-runtime.js");
 		const { createAgentPlatform } = await loadCursorSdk();
 
 		const platform = await createAgentPlatform({ workspaceRef: tmpAgentDir, scopedWorkspaceRef: tmpAgentDir });
-		const checkpoint = await platform.checkpointStore.loadLatest("pi-cursor-sdk-checkpoint-contract-test");
+		const checkpoint = await platform.checkpointStore.loadLatest("omp-cursor-checkpoint-contract-test");
 
 		expect(checkpoint).toBeNull();
 	});

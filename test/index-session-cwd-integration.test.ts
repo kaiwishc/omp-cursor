@@ -79,7 +79,7 @@ describe("extension session cwd integration", () => {
 		delete process.env.PI_CURSOR_NATIVE_TOOL_DISPLAY;
 		delete process.env.PI_CURSOR_REGISTER_NATIVE_TOOLS;
 		delete process.env.PI_CURSOR_SETTING_SOURCES;
-		delete process.env.PI_CURSOR_HTTP_1_1;
+		process.env.PI_CURSOR_HTTP_1_1 = "1";
 		cursorHttp1TestUtils.reset();
 		expect(cursorProviderTestUtils.pendingCursorNativeRunCount()).toBe(0);
 		cursorSessionScopeTestUtils.reset();
@@ -116,7 +116,7 @@ describe("extension session cwd integration", () => {
 					}),
 				}),
 			);
-			expect(mockedCursorConfigure).not.toHaveBeenCalled();
+			expect(mockedCursorConfigure).toHaveBeenCalledWith({ local: { useHttp1ForAgent: true } });
 		} finally {
 			rmSync(sessionDir, { recursive: true, force: true });
 		}

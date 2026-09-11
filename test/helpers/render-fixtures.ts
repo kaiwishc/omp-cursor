@@ -1,17 +1,23 @@
-import type { RegisteredTool } from "./pi-harness-types.js";
+import type { CursorReplayRenderTheme } from "../../src/cursor-native-tool-display-replay.js";
 
-type ToolRenderCall = NonNullable<RegisteredTool["renderCall"]>;
-type ToolRenderResult = NonNullable<RegisteredTool["renderResult"]>;
+export type HarnessRenderTheme = CursorReplayRenderTheme;
+export type HarnessRenderContext = Record<string, unknown>;
+export type HarnessRenderResultOptions = {
+	expanded: boolean;
+	isPartial: boolean;
+};
 
-export type HarnessRenderTheme = Parameters<ToolRenderCall>[1];
-export type HarnessRenderContext = Parameters<ToolRenderCall>[2];
-type HarnessRenderContextWithObjectArgs = Omit<HarnessRenderContext, "args"> & { args: object };
-export type HarnessRenderResultOptions = Parameters<ToolRenderResult>[1];
-
-export function createRenderTheme(overrides: Partial<HarnessRenderTheme> = {}): HarnessRenderTheme {
+export function createRenderTheme(
+	overrides: {
+		fg?: (style: string, text: string) => string;
+		bold?: (text: string) => string;
+		styledSymbol?: (symbol: string, style: string) => string;
+	} = {},
+): HarnessRenderTheme {
 	return {
-		fg: (_style: string, text: string) => text,
+		fg: (style: string, text: string) => text,
 		bold: (text: string) => text,
+		styledSymbol: (_symbol: string, _style: string) => "",
 		...overrides,
 	} as HarnessRenderTheme;
 }
@@ -24,7 +30,7 @@ export function createRenderOptions(overrides: Partial<HarnessRenderResultOption
 	};
 }
 
-export function createRenderContext(overrides: Partial<HarnessRenderContext> & { args?: object } = {}): HarnessRenderContextWithObjectArgs {
+export function createRenderContext(overrides: Record<string, unknown> = {}): HarnessRenderContext {
 	return {
 		args: {},
 		toolCallId: "test-tool-call",

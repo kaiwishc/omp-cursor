@@ -4,9 +4,9 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 120_000;
-export const CLOUD_SMOKE_REPO_NAME_PREFIX = "pi-cursor-cloud-smoke-";
+export const CLOUD_SMOKE_REPO_NAME_PREFIX = "omp-cursor-cloud-smoke-";
 export const CLOUD_SMOKE_OWNERSHIP_TOKEN_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const OWNED_REPO_NAME_PATTERN = /^[^/]+\/pi-cursor-cloud-smoke-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+const OWNED_REPO_NAME_PATTERN = /^[^/]+\/omp-cursor-cloud-smoke-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 
 function fail(message, details = "") {
 	const error = new Error(message);
@@ -17,7 +17,7 @@ function fail(message, details = "") {
 export function cloudSmokeRepositoryDescription(ownershipToken) {
 	const token = String(ownershipToken ?? "").toLowerCase();
 	if (!CLOUD_SMOKE_OWNERSHIP_TOKEN_PATTERN.test(token)) fail("cloud smoke ownership token must be a lowercase UUID");
-	return `pi-cursor-sdk throwaway cloud smoke; ownership=${token}; safe to delete`;
+	return `omp-cursor throwaway cloud smoke; ownership=${token}; safe to delete`;
 }
 
 export function assertOwnedThrowawayRepositoryHandle(repo) {
@@ -29,7 +29,7 @@ export function assertOwnedThrowawayRepositoryHandle(repo) {
 	const fullName = String(repo.fullName ?? "").toLowerCase();
 	const match = fullName.match(OWNED_REPO_NAME_PATTERN);
 	if (!match || match[1] !== ownershipToken) {
-		fail("throwaway repository handle fullName must match pi-cursor-cloud-smoke-<ownership-token>");
+		fail("throwaway repository handle fullName must match omp-cursor-cloud-smoke-<ownership-token>");
 	}
 	const expectedDescription = cloudSmokeRepositoryDescription(ownershipToken);
 	if (repo.description !== expectedDescription) {
@@ -230,10 +230,10 @@ export function createThrowawayRepository(artifactRoot, onOwned, options = {}) {
 	verifyOwnedRepository(repo, options);
 
 	command("gh", ["repo", "clone", fullName, seedDir], { cwd, label: "clone throwaway repository" });
-	command("git", ["config", "user.name", "pi-cursor-sdk cloud smoke"], { cwd: seedDir });
-	command("git", ["config", "user.email", "pi-cursor-sdk-cloud-smoke@invalid.example"], { cwd: seedDir });
+	command("git", ["config", "user.name", "omp-cursor cloud smoke"], { cwd: seedDir });
+	command("git", ["config", "user.email", "omp-cursor-cloud-smoke@invalid.example"], { cwd: seedDir });
 	command("git", ["switch", "-c", "main"], { cwd: seedDir });
-	writeFile(join(seedDir, "README.md"), "# pi-cursor-sdk cloud smoke\n");
+	writeFile(join(seedDir, "README.md"), "# omp-cursor cloud smoke\n");
 	command("git", ["add", "README.md"], { cwd: seedDir });
 	command("git", ["commit", "-m", "seed main"], { cwd: seedDir });
 	command("git", authenticatedGitArgs(["push", "-u", "origin", "main"]), { cwd: seedDir });

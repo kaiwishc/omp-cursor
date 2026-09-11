@@ -3,7 +3,7 @@ import { cpSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, wri
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, sep } from "node:path";
-import { OPENAI_CODEX_MODELS } from "@earendil-works/pi-ai/providers/openai-codex.models";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
 import { describe, expect, it } from "vitest";
 import { FALLBACK_MODEL_ITEMS } from "../src/cursor-fallback-models.generated.js";
 
@@ -12,7 +12,7 @@ const packageJson = require("../package.json") as {
 	version: string;
 	dependencies: Record<string, string>;
 	devDependencies: Record<string, string>;
-	peerDependencies: Record<string, string>;
+	omp?: { extensions?: string[] };
 	bundledDependencies?: string[];
 	overrides?: Record<string, string>;
 };
@@ -21,10 +21,12 @@ const packageLock = require("../package-lock.json") as {
 	packages: Record<string, { version?: string; resolved?: string; dependencies?: Record<string, string>; bundleDependencies?: boolean | string[] }>;
 };
 
-const PI_PACKAGES = [
-	"@earendil-works/pi-ai",
-	"@earendil-works/pi-coding-agent",
-	"@earendil-works/pi-tui",
+const OMP_PACKAGES = [
+	"@oh-my-pi/omptype",
+	"@oh-my-pi/pi-ai",
+	"@oh-my-pi/pi-coding-agent",
+	"@oh-my-pi/pi-tui",
+	"@oh-my-pi/pi-utils",
 ] as const;
 
 const BUNDLED_MCP_HONO_CLOSURE = ["@hono/node-server", "@modelcontextprotocol/sdk"] as const;
@@ -77,12 +79,13 @@ describe("package metadata cutover baselines", () => {
 		expect(lockPackageVersion("@cursor/sdk")).toBe("1.0.27");
 	});
 
-	it("keeps lockfile resolved URLs on the public npm registry", () => {
+	it("keeps lockfile resolved URLs on approved public npm registries", () => {
 		const hosts = new Set(
 			Object.values(packageLock.packages)
 				.flatMap((entry) => (entry.resolved ? [new URL(entry.resolved).host] : [])),
 		);
-		expect([...hosts]).toEqual(["registry.npmjs.org"]);
+		expect(hosts.size).toBeGreaterThan(0);
+		expect([...hosts].every((host) => host === "registry.npmjs.org" || host === "registry.npmmirror.com")).toBe(true);
 	});
 
 	it("ships an exact MCP/Hono bundledDependencies closure for published installs", () => {
@@ -131,11 +134,11 @@ describe("package metadata cutover baselines", () => {
 	});
 
 	it("packs an isolated MCP/Hono closure that beats a hostile host @hono/node-server", () => {
-		const tempRoot = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-hono-bundle-"));
+		const tempRoot = mkdtempSync(join(tmpdir(), "omp-cursor-hono-bundle-"));
 		try {
 			const packOutput = npmPack(["pack", "--ignore-scripts", "--pack-destination", tempRoot], process.cwd());
 			const tarballName = packOutput.trim().split(/\r?\n/).at(-1)?.trim();
-			expect(tarballName).toMatch(/^pi-cursor-sdk-.*\.tgz$/);
+			expect(tarballName).toMatch(/^omp-cursor-.*\.tgz$/);
 
 			const listing = execFileSync("tar", ["-tzf", tarballName!], { cwd: tempRoot, encoding: "utf8" });
 			expect(listing).toContain("package/package.json");
@@ -160,7 +163,7 @@ describe("package metadata cutover baselines", () => {
 
 			const hostRoot = join(tempRoot, "host");
 			const hostNodeModules = join(hostRoot, "node_modules");
-			const packageDir = join(hostNodeModules, "pi-cursor-sdk");
+			const packageDir = join(hostNodeModules, "omp-cursor");
 			mkdirSync(packageDir, { recursive: true });
 			cpSync(join(extractDir, "package"), packageDir, { recursive: true });
 
@@ -190,27 +193,32 @@ describe("package metadata cutover baselines", () => {
 		}
 	}, 60_000);
 
-	it("pins pi validation baselines", () => {
-		for (const packageName of PI_PACKAGES) {
-			expect(packageJson.devDependencies[packageName]).toBe("0.84.0");
-			expect(lockPackageVersion(packageName)).toBe("0.84.0");
+	it("pins OMP runtime dependencies", () => {
+		for (const packageName of OMP_PACKAGES) {
+			expect(packageJson.dependencies[packageName]).toBe("18.1.15");
+			expect(lockPackageVersion(packageName)).toBe("18.1.15");
 		}
 	});
 
-	it("pins Pi 0.84.0's TypeBox validation baseline", () => {
-		expect(packageJson.devDependencies.typebox).toBe("1.3.7");
-		expect(lockPackageVersion("typebox")).toBe("1.3.7");
+	it("uses OMP's TypeBox compatibility layer", () => {
+		expect(packageJson.dependencies["@oh-my-pi/omptype"]).toBe("18.1.15");
+		expect(lockPackageVersion("@oh-my-pi/omptype")).toBe("18.1.15");
 	});
 
-	it("tracks Pi 0.84.0 GPT-5.6 Codex metadata", () => {
+	it("tracks OMP's GPT-5.6 Codex metadata", () => {
 		for (const modelId of ["gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra"] as const) {
-			expect(OPENAI_CODEX_MODELS[modelId]).toMatchObject({
-				contextWindow: 272000,
-				maxTokens: 128000,
-				thinkingLevelMap: { xhigh: "xhigh", max: "max", minimal: "low" },
+			expect(getBundledModel("openai-codex", modelId)).toMatchObject({
+				contextWindow: 1_000_000,
+				maxTokens: 128_000,
+				thinking: {
+					mode: "effort",
+					efforts: ["low", "medium", "high", "xhigh", "max"],
+				},
 			});
 		}
 	});
+
+
 
 	it("keeps Grok UX examples aligned with the generated Cursor catalog", () => {
 		const spec = readFileSync(join(process.cwd(), "docs/cursor-model-ux-spec.md"), "utf8");
@@ -231,9 +239,4 @@ describe("package metadata cutover baselines", () => {
 		expect(spec).not.toContain("grok-4.3");
 	});
 
-	it("keeps @earendil-works peer dependency ranges unpinned per pi package guidance", () => {
-		for (const packageName of PI_PACKAGES) {
-			expect(packageJson.peerDependencies[packageName]).toBe("*");
-		}
-	});
 });

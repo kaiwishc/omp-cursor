@@ -1,8 +1,8 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Context } from "@earendil-works/pi-ai";
-import { Type } from "typebox";
+import type { Context } from "@oh-my-pi/pi-ai"
+import { Type } from "@oh-my-pi/omptype/typebox"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	resetCursorProviderTestState,

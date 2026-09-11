@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { TurnEndedUpdateSchema } from "@cursor/sdk";
-import type { AssistantMessage, Context } from "@earendil-works/pi-ai";
+import type { AssistantMessage, Context } from "@oh-my-pi/pi-ai"
 import {
 	applyCursorUsage,
 	isCursorSdkUsageSafeForPiMessage,
@@ -118,7 +118,7 @@ describe("installed Cursor SDK turn-ended usage contract", () => {
 	it("maps observed raw turn-ended.usage with full-prompt partition semantics, not published additive totalTokens", () => {
 		const model = makeModel();
 		const context: Context = {
-			systemPrompt: "Be helpful.",
+			systemPrompt: ["Be helpful."],
 			messages: [{ role: "user", content: "Reply with exactly: A", timestamp: 1 }],
 		};
 

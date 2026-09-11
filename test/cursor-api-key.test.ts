@@ -1,18 +1,18 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	CURSOR_API_KEY_CONFIG_VALUE,
 	resolveCursorApiKey,
+	resolveCursorApiKeyValue,
 	resolveCursorRuntimeApiKey,
 } from "../src/cursor-api-key.js";
 
-function writeStoredCursorApiKey(apiKey: string): void {
-	writeFileSync(
-		join(process.env.PI_CODING_AGENT_DIR!, "auth.json"),
-		JSON.stringify({ "cursor-sdk": { type: "api_key", key: apiKey } }, null, 2),
-	);
+function writeCursorSdkUserConfig(apiKey: string): void {
+	const path = join(process.env.PI_CODING_AGENT_DIR!, "cursor-sdk.json");
+	writeFileSync(path, JSON.stringify({ apiKey }, null, 2));
+	if (process.platform !== "win32") chmodSync(path, 0o600);
 }
 
 describe("cursor-api-key helpers", () => {
@@ -23,9 +23,9 @@ describe("cursor-api-key helpers", () => {
 	beforeEach(() => {
 		process.env = { ...originalEnv };
 		delete process.env.CURSOR_API_KEY;
-		tmpAgentDir = mkdtempSync(join(tmpdir(), "pi-cursor-api-key-"));
+		tmpAgentDir = mkdtempSync(join(tmpdir(), "omp-cursor-api-key-"));
 		process.env.PI_CODING_AGENT_DIR = tmpAgentDir;
-		process.argv = ["node", "vitest"];
+		process.argv = ["bun", "vitest"];
 	});
 
 	afterEach(() => {
@@ -43,27 +43,33 @@ describe("cursor-api-key helpers", () => {
 		},
 	);
 
-	it("ignores every process argv form and resolves stored auth before env", async () => {
+	it("does not inspect process argv for runtime credentials", async () => {
 		process.argv = [
-			"node", "pi", "--model", "anthropic/first", "--api-key", "first-key",
-			"--MODEL", "cursor/case", "--API-KEY", "case-key",
-			"--model=cursor/unsupported", "--api-key=equals-key",
-			"--models", "cursor/list-like", "--provider", "cursor",
-			"--model", "cursor/final", "--api-key", "last-key",
+			"bun", "omp", "--model", "anthropic/first", "--api-key", "first-key",
+			"--model=cursor-sdk/unsupported", "--api-key=equals-key",
 		];
 		expect(await resolveCursorRuntimeApiKey()).toBeUndefined();
-
-		process.env.CURSOR_API_KEY = "env-key-123";
-		expect(await resolveCursorRuntimeApiKey()).toBe("env-key-123");
-
-		writeStoredCursorApiKey("stored-key-123");
-		expect(await resolveCursorRuntimeApiKey()).toBe("stored-key-123");
 	});
 
-	it("resolves stored placeholders through env", async () => {
-		writeStoredCursorApiKey(CURSOR_API_KEY_CONFIG_VALUE);
-		process.env.CURSOR_API_KEY = "env-key-123";
+	it("resolves the OMP user config after the environment", async () => {
+		writeCursorSdkUserConfig("config-key-123");
+		expect(await resolveCursorRuntimeApiKey()).toBe("config-key-123");
 
+		process.env.CURSOR_API_KEY = "env-key-123";
 		expect(await resolveCursorRuntimeApiKey()).toBe("env-key-123");
+	});
+
+	it("resolves an OMP ApiKey resolver without reading auth storage", async () => {
+		const resolver = vi.fn(() => "resolver-key-123");
+		expect(await resolveCursorApiKeyValue(resolver)).toBe("resolver-key-123");
+		expect(resolver).toHaveBeenCalledOnce();
+	});
+
+	it("never reads OMP auth storage", async () => {
+		writeFileSync(
+			join(process.env.PI_CODING_AGENT_DIR!, "auth.json"),
+			JSON.stringify({ cursor: { type: "api_key", key: "stored-key-123" } }, null, 2),
+		);
+		expect(await resolveCursorRuntimeApiKey()).toBeUndefined();
 	});
 });

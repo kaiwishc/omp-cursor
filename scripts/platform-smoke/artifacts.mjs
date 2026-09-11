@@ -210,7 +210,7 @@ function shouldTransportBundleFile(root, path, pathPrefix) {
 	if (isSensitiveTransportPath(root, path) || !isTransportableTextPath(path)) return false;
 	if (pathPrefix) return true;
 	const rel = relative(root, path).replace(/\\/g, "/");
-	return /^(?:artifacts\/(?:terminal\.(?:ansi|txt)|session\.jsonl|live-status\.json|pi-command\.json|bridge-diagnostics\.jsonl|abort-started\.txt)|logs\/(?:process-|leftover-process-check)[^/]*|cursor-sdk-events\/.*\/(?:session|metadata)\.json)$/i.test(rel);
+	return /^(?:artifacts\/(?:terminal\.(?:ansi|txt)|session\.jsonl|live-status\.json|omp-command\.json|bridge-diagnostics\.jsonl|abort-started\.txt)|logs\/(?:process-|leftover-process-check)[^/]*|cursor-sdk-events\/.*\/(?:session|metadata)\.json)$/i.test(rel);
 }
 
 function singleFilePlatformArtifactBundle(pathPrefix, name, value) {

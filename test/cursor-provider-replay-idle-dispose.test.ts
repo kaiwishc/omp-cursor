@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Type } from "typebox";
+import { Type } from "@oh-my-pi/omptype/typebox"
 import {
 	resetCursorProviderTestState,
 	mockedCreate,
@@ -35,7 +35,7 @@ import {
 import { streamCursor, __testUtils as cursorProviderTestUtils } from "../src/cursor-provider.js";
 import { estimateCursorPromptMessageTokens } from "../src/context.js";
 import { __testUtils as nativeToolDisplayTestUtils } from "../src/cursor-native-tool-display-state.js";
-import type { Context } from "@earendil-works/pi-ai";
+import type { Context } from "@oh-my-pi/pi-ai"
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -59,7 +59,7 @@ it("disposes abandoned native replay runs after the idle timeout and abandons th
 					type: "tool-call-completed",
 					toolCall: {
 						name: "read",
-						result: { status: "success", value: { content: "# pi-cursor-sdk" } },
+						result: { status: "success", value: { content: "# omp-cursor" } },
 					},
 					callId: "c1",
 				},
@@ -114,7 +114,7 @@ it("disposes abandoned native replay runs after the idle timeout and abandons th
 					type: "tool-call-completed",
 					toolCall: {
 						name: "read",
-						result: { status: "success", value: { content: "# pi-cursor-sdk" } },
+						result: { status: "success", value: { content: "# omp-cursor" } },
 					},
 					callId: "c1",
 				},
@@ -198,7 +198,7 @@ it("disposes abandoned native replay runs after the idle timeout and abandons th
 					type: "tool-call-completed",
 					toolCall: {
 						name: "read",
-						result: { status: "success", value: { content: "# pi-cursor-sdk" } },
+						result: { status: "success", value: { content: "# omp-cursor" } },
 					},
 					callId: "c1",
 				},

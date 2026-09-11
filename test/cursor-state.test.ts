@@ -14,7 +14,7 @@ import {
 } from "../src/cursor-state.js";
 import { __testUtils as modelDiscoveryTestUtils } from "../src/model-discovery.js";
 import type { ModelListItem } from "@cursor/sdk";
-import type { ExtensionContext, SessionEntry } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext, SessionEntry } from "@oh-my-pi/pi-coding-agent"
 import { CURSOR_HTTP1_ENV } from "../src/cursor-config.js";
 import {
 	createExtensionCommandContext,
@@ -287,7 +287,7 @@ describe("Cursor runtime state", () => {
 		expect(getStoredCursorAgentMode()).toBe("agent");
 	});
 
-	it("reports invalid --cursor-mode when a non-Cursor session later selects a Cursor model", async () => {
+	it("reports invalid --cursor-mode when a non-Cursor session later uses a Cursor model", async () => {
 		const { pi, ctx } = createCursorRuntimeHarness({
 			provider: "anthropic",
 			api: "anthropic-messages",
@@ -298,14 +298,10 @@ describe("Cursor runtime state", () => {
 		await pi.invokeEventWithContext("session_start", { type: "session_start", reason: "startup" }, ctx);
 		expect(ctx.ui.notify).not.toHaveBeenCalled();
 
+		ctx.model = { ...makeModel("composer-2"), provider: "cursor", api: "cursor-sdk" };
 		await pi.invokeEventWithContext(
-			"model_select",
-			{
-				type: "model_select",
-				model: { ...makeModel("composer-2"), provider: "cursor", api: "cursor-sdk" },
-				previousModel: ctx.model!,
-				source: "set",
-			},
+			"before_agent_start",
+			{ type: "before_agent_start", prompt: "hello", systemPrompt: [] },
 			ctx,
 		);
 
@@ -380,19 +376,15 @@ describe("Cursor runtime state", () => {
 		expect(ctx.ui.setStatus).toHaveBeenLastCalledWith("cursor", "cursor:local · fast:on · plan");
 	});
 
-	it("updates Cursor mode status when switching between Cursor models", async () => {
+	it("updates Cursor mode status when the active model changes", async () => {
 		const { pi, ctx } = createCursorRuntimeHarness({ modelId: "composer-2", cursorModeFlag: "plan" });
 		await pi.invokeEventWithContext("session_start", { type: "session_start", reason: "startup" }, ctx);
 		expect(ctx.ui.setStatus).toHaveBeenLastCalledWith("cursor", "cursor:local · fast:on · plan");
 
+		ctx.model = { ...makeModel("gpt-5.5@1m"), provider: "cursor", api: "cursor-sdk" };
 		await pi.invokeEventWithContext(
-			"model_select",
-			{
-				type: "model_select",
-				model: { ...makeModel("gpt-5.5@1m"), provider: "cursor", api: "cursor-sdk" },
-				previousModel: ctx.model!,
-				source: "set",
-			},
+			"before_agent_start",
+			{ type: "before_agent_start", prompt: "hello", systemPrompt: [] },
 			ctx,
 		);
 
@@ -620,19 +612,15 @@ describe("Cursor runtime state", () => {
 		});
 	});
 
-	it("clears Cursor status when model_select moves from Cursor fast model to non-cursor model", async () => {
+	it("clears Cursor status when the active model changes to a non-Cursor model", async () => {
 		const { pi, ctx } = createCursorRuntimeHarness({ modelId: "composer-2" });
 		await pi.invokeEventWithContext("session_start", { type: "session_start", reason: "startup" }, ctx);
 		expect(ctx.ui.setStatus).toHaveBeenLastCalledWith("cursor", "cursor:local · fast:on");
 
+		ctx.model = makeHarnessModel("anthropic", "anthropic-messages", "claude-sonnet-4-5");
 		await pi.invokeEventWithContext(
-			"model_select",
-			{
-				type: "model_select",
-				model: makeHarnessModel("anthropic", "anthropic-messages", "claude-sonnet-4-5"),
-				previousModel: ctx.model!,
-				source: "set",
-			},
+			"before_agent_start",
+			{ type: "before_agent_start", prompt: "hello", systemPrompt: [] },
 			ctx,
 		);
 
@@ -726,7 +714,7 @@ describe("Cursor runtime state", () => {
 			expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("Callable tool surfaces this run:"), "info");
 			expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("pi__custom_bridge_tool"), "info");
 			expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("Cursor host/MCP"), "info");
-			expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("Pi tool toggles affect pi tools/bridge exposure only"), "info");
+			expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("OMP tool toggles affect OMP tools/bridge exposure only"), "info");
 		} finally {
 			if (originalBridgeEnv === undefined) delete process.env.PI_CURSOR_PI_TOOL_BRIDGE;
 			else process.env.PI_CURSOR_PI_TOOL_BRIDGE = originalBridgeEnv;
@@ -742,7 +730,7 @@ describe("Cursor runtime state", () => {
 			PI_CURSOR_SETTING_SOURCES: "project",
 		});
 		expect(report).toContain("PI_CURSOR_PI_TOOL_BRIDGE: disabled");
-		expect(report).toContain("Pi bridge: disabled (PI_CURSOR_PI_TOOL_BRIDGE=0).");
+		expect(report).toContain("OMP bridge: disabled (PI_CURSOR_PI_TOOL_BRIDGE=0).");
 		expect(report).toContain("PI_CURSOR_SETTING_SOURCES: project (effective: project)");
 		expect(report).toContain("Callable tool surfaces this run:");
 	});

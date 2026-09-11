@@ -1,4 +1,4 @@
-export const CLOUD_SMOKE_REPO_NAME_PREFIX: "pi-cursor-cloud-smoke-";
+export const CLOUD_SMOKE_REPO_NAME_PREFIX: "omp-cursor-cloud-smoke-";
 export const CLOUD_SMOKE_OWNERSHIP_TOKEN_PATTERN: RegExp;
 
 export type CloudSmokeOwnedRepository = {

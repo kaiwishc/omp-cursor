@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -13,28 +13,31 @@ import {
 import { saveCachedContextWindow, __testUtils as contextWindowCacheTestUtils } from "../src/context-window-cache.js";
 import { FALLBACK_MODEL_ITEMS } from "../src/cursor-fallback-models.generated.js";
 
-vi.mock("@cursor/sdk", () => ({
-	Cursor: {
-		models: {
-			list: vi.fn(),
-		},
-	},
+vi.mock("../src/cursor-sdk-runtime.js", () => ({
+	loadCursorSdk: vi.fn(),
 }));
 
-import { Cursor } from "@cursor/sdk";
+import { loadCursorSdk } from "../src/cursor-sdk-runtime.js";
+import type { CursorSdkModule } from "../src/cursor-sdk-runtime.js";
 import type { ModelListItem } from "@cursor/sdk";
 
-const mockedList = vi.mocked(Cursor.models.list);
+const mockedLoadCursorSdk = vi.mocked(loadCursorSdk);
+const mockedList = vi.fn();
+
+function installMockedCursorSdk(): void {
+	mockedLoadCursorSdk.mockResolvedValue({
+		Cursor: { models: { list: mockedList } },
+	} as unknown as CursorSdkModule);
+}
 
 function register(items: ModelListItem[]) {
 	return __testUtils.registerModelItems(items);
 }
 
 function writeStoredCursorApiKey(apiKey: string): void {
-	writeFileSync(
-		join(process.env.PI_CODING_AGENT_DIR!, "auth.json"),
-		JSON.stringify({ "cursor-sdk": { type: "api_key", key: apiKey } }, null, 2),
-	);
+	const path = join(process.env.PI_CODING_AGENT_DIR!, "cursor-sdk.json");
+	writeFileSync(path, JSON.stringify({ apiKey }, null, 2));
+	if (process.platform !== "win32") chmodSync(path, 0o600);
 }
 
 describe("discoverModels", () => {
@@ -48,6 +51,7 @@ describe("discoverModels", () => {
 		tmpAgentDir = mkdtempSync(join(tmpdir(), "pi-cursor-discovery-"));
 		process.env.PI_CODING_AGENT_DIR = tmpAgentDir;
 		process.argv = ["node", "vitest"];
+		installMockedCursorSdk();
 	});
 
 	afterEach(() => {
@@ -87,11 +91,11 @@ describe("discoverModels", () => {
 				message: expect.stringContaining("CURSOR_API_KEY"),
 			}),
 		]);
-		expect(issues[0].message).toContain("/login");
-		expect(issues[0].message).toContain("startup discovery does not parse Pi CLI arguments");
-		expect(issues[0].message).toContain("fallback models can run once auth exists");
+		expect(issues[0].message).toContain("~/.omp/agent/cursor-sdk.json");
+		expect(issues[0].message).toContain("startup discovery does not parse OMP CLI arguments");
+		expect(issues[0].message).toContain("fallback models can run once a key exists");
 		expect(issues[0].message).toContain("/cursor-refresh-models");
-		expect(issues[0].message).not.toContain("will fail until pi is restarted");
+		expect(issues[0].message).not.toContain("will fail until OMP is restarted");
 		expect(mockedList).not.toHaveBeenCalled();
 	});
 
@@ -130,7 +134,7 @@ describe("discoverModels", () => {
 		expect(models.map((model) => model.id)).toEqual(["composer-2"]);
 	});
 
-	it("uses stored pi auth for model discovery when env and CLI are absent", async () => {
+	it("uses the global OMP user config for model discovery when env and CLI are absent", async () => {
 		writeStoredCursorApiKey("stored-key-123");
 		mockedList.mockResolvedValueOnce([
 			{
@@ -146,7 +150,7 @@ describe("discoverModels", () => {
 		expect(models.map((model) => model.id)).toEqual(["composer-2"]);
 	});
 
-	it("prefers stored pi auth over CURSOR_API_KEY for model discovery", async () => {
+	it("prefers CURSOR_API_KEY over the global OMP user config", async () => {
 		writeStoredCursorApiKey("stored-key-123");
 		process.env.CURSOR_API_KEY = "env-key-123";
 		mockedList.mockResolvedValueOnce([
@@ -159,11 +163,11 @@ describe("discoverModels", () => {
 
 		await discoverModels();
 
-		expect(mockedList).toHaveBeenCalledWith({ apiKey: "stored-key-123" });
+		expect(mockedList).toHaveBeenCalledWith({ apiKey: "env-key-123" });
 	});
 
-	it.each(["CURSOR_API_KEY", "$CURSOR_API_KEY", "${CURSOR_API_KEY}", "pi-cursor-sdk-cursor-api-key-placeholder"])(
-		"treats unresolved stored %s auth as missing when env is absent",
+	it.each(["CURSOR_API_KEY", "$CURSOR_API_KEY", "${CURSOR_API_KEY}"])(
+		"treats unresolved stored %s config as missing when env is absent",
 		async (placeholder) => {
 			writeStoredCursorApiKey(placeholder);
 			const issues: CursorModelFallbackIssue[] = [];
@@ -172,13 +176,13 @@ describe("discoverModels", () => {
 
 			expect(models.some((model) => model.id === "composer-2.5")).toBe(true);
 			expect(issues).toEqual([expect.objectContaining({ reason: "missing-api-key" })]);
-			expect(issues[0].message).toContain("/login");
+			expect(issues[0].message).toContain("~/.omp/agent/cursor-sdk.json");
 			expect(mockedList).not.toHaveBeenCalled();
 		},
 	);
 
-	it.each(["CURSOR_API_KEY", "$CURSOR_API_KEY", "${CURSOR_API_KEY}", "pi-cursor-sdk-cursor-api-key-placeholder"])(
-		"resolves stored %s auth through the env var when present",
+	it.each(["CURSOR_API_KEY", "$CURSOR_API_KEY", "${CURSOR_API_KEY}"])(
+		"resolves stored %s config through the env var when present",
 		async (placeholder) => {
 			writeStoredCursorApiKey(placeholder);
 			process.env.CURSOR_API_KEY = "env-key-123";
@@ -195,6 +199,7 @@ describe("discoverModels", () => {
 			expect(mockedList).toHaveBeenCalledWith({ apiKey: "env-key-123" });
 		},
 	);
+
 
 	it("calls Cursor.models.list with API key and sorts by base id", async () => {
 		process.env.CURSOR_API_KEY = "test-key-123";
@@ -641,10 +646,10 @@ describe("discoverModels", () => {
 		]);
 		const models = await discoverModels();
 		expect(models[0].reasoning).toBe(false);
-		expect(models[0].thinkingLevelMap).toBeUndefined();
+		expect(models[0].thinking).toBeUndefined();
 	});
 
-	it("maps Cursor reasoning values to pi thinking levels", async () => {
+	it("maps Cursor reasoning values to OMP thinking efforts", async () => {
 		process.env.CURSOR_API_KEY = "test-key-123";
 		mockedList.mockResolvedValueOnce([
 			{
@@ -674,14 +679,11 @@ describe("discoverModels", () => {
 			},
 		]);
 		const models = await discoverModels();
-		expect(models[0].thinkingLevelMap).toEqual({
-			off: "none",
-			minimal: "minimal",
-			low: "low",
-			medium: "medium",
-			high: "high",
-			xhigh: "extra-high",
-			max: null,
+		expect(models[0].thinking).toEqual({
+			mode: "effort",
+			efforts: ["minimal", "low", "medium", "high", "xhigh"],
+			defaultLevel: "medium",
+			effortMap: { minimal: "minimal", low: "low", medium: "medium", high: "high", xhigh: "extra-high" },
 		});
 	});
 
@@ -708,14 +710,11 @@ describe("discoverModels", () => {
 			},
 		]);
 		const models = await discoverModels();
-		expect(models[0].thinkingLevelMap).toEqual({
-			off: "false",
-			minimal: null,
-			low: null,
-			medium: null,
-			high: "true",
-			xhigh: null,
-			max: null,
+		expect(models[0].thinking).toEqual({
+			mode: "effort",
+			efforts: ["high"],
+			defaultLevel: "high",
+			effortMap: { high: "true" },
 		});
 	});
 
@@ -758,14 +757,11 @@ describe("discoverModels", () => {
 		expect(models.map((model) => model.id)).toEqual(["claude-opus-4-7@300k", "claude-opus-4-7@1m"]);
 		expect(models[0].contextWindow).toBe(300000);
 		expect(models[1].contextWindow).toBe(1000000);
-		expect(models[0].thinkingLevelMap).toEqual({
-			off: "false",
-			minimal: null,
-			low: "low",
-			medium: "medium",
-			high: "high",
-			xhigh: "xhigh",
-			max: "max",
+		expect(models[0].thinking).toEqual({
+			mode: "effort",
+			efforts: ["low", "medium", "high", "xhigh", "max"],
+			defaultLevel: "xhigh",
+			effortMap: { low: "low", medium: "medium", high: "high", xhigh: "xhigh", max: "max" },
 		});
 	});
 
@@ -803,14 +799,11 @@ describe("discoverModels", () => {
 
 		const models = await discoverModels();
 
-		expect(models[0].thinkingLevelMap).toEqual({
-			off: null,
-			minimal: null,
-			low: "low",
-			medium: "medium",
-			high: "high",
-			xhigh: null,
-			max: null,
+		expect(models[0].thinking).toEqual({
+			mode: "effort",
+			efforts: ["low", "medium", "high"],
+			defaultLevel: "medium",
+			effortMap: { low: "low", medium: "medium", high: "high" },
 		});
 		expect(buildCursorModelSelection("reasoning-only", "off")).toEqual({
 			id: "reasoning-only",
@@ -843,14 +836,11 @@ describe("discoverModels", () => {
 
 		const models = await discoverModels();
 
-		expect(models[0].thinkingLevelMap).toEqual({
-			off: "false",
-			minimal: null,
-			low: "low",
-			medium: "medium",
-			high: "high",
-			xhigh: null,
-			max: null,
+		expect(models[0].thinking).toEqual({
+			mode: "effort",
+			efforts: ["low", "medium", "high"],
+			defaultLevel: "medium",
+			effortMap: { low: "low", medium: "medium", high: "high" },
 		});
 		expect(buildCursorModelSelection("claude-like", "high")).toEqual({
 			id: "claude-like",
@@ -864,7 +854,6 @@ describe("discoverModels", () => {
 			params: [{ id: "thinking", value: "false" }],
 		});
 	});
-
 	it("keeps the fallback snapshot aligned with the current Composer 2.5 catalog shape", async () => {
 		delete process.env.CURSOR_API_KEY;
 
@@ -908,13 +897,12 @@ describe("discoverModels", () => {
 		expect(models.some((model) => model.id === "composer-2.5")).toBe(true);
 		expect(issues).toEqual([
 			expect.objectContaining({
-				reason: "discovery-failed",
 				message: expect.stringContaining("Cursor model discovery failed"),
 			}),
 		]);
 		expect(issues[0].message).toContain("network error");
 		expect(issues[0].errorMessage).toBe("network error");
-		expect(issues[0].message).toContain("/login");
+		expect(issues[0].message).toContain("~/.omp/agent/cursor-sdk.json");
 		expect(issues[0].message).not.toContain("test-key-123");
 	});
 
@@ -958,7 +946,7 @@ describe("discoverModels", () => {
 				message: expect.stringContaining("Cursor model discovery returned no models"),
 			}),
 		]);
-		expect(issues[0].message).toContain("/login");
+		expect(issues[0].message).toContain("~/.omp/agent/cursor-sdk.json");
 		expect(issues[0].message).toContain("/cursor-refresh-models");
 	});
 

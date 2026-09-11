@@ -6,8 +6,9 @@ import {
 	type Context,
 	type Model,
 	type SimpleStreamOptions,
-} from "@earendil-works/pi-ai";
+} from "@oh-my-pi/pi-ai"
 import { streamCursor } from "./cursor-provider.js";
+import { resolveCursorRuntimeApiKey } from "./cursor-api-key.js";
 import { sanitizeCursorProviderError } from "./cursor-provider-errors.js";
 
 function makeProviderRuntimeErrorMessage(model: Model<Api>, error: unknown, apiKey?: string): AssistantMessage {
@@ -43,7 +44,7 @@ export function streamCursorLazy(
 				outer.push(event);
 			}
 		} catch (error) {
-			const message = makeProviderRuntimeErrorMessage(model, error, options?.apiKey);
+			const message = makeProviderRuntimeErrorMessage(model, error, await resolveCursorRuntimeApiKey(options?.apiKey));
 			outer.push({ type: "error", reason: "error", error: message });
 			outer.end(message);
 		}

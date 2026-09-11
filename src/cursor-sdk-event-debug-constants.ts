@@ -14,7 +14,7 @@ export {
 	CURSOR_SDK_EVENT_DEBUG_SESSION_DIR_ENV,
 	CURSOR_SDK_EVENT_DEBUG_STDERR_ENV,
 };
-export const CURSOR_SDK_EVENT_DEBUG_LOG_PREFIX = "[pi-cursor-sdk:sdk-events]";
+export const CURSOR_SDK_EVENT_DEBUG_LOG_PREFIX = "[omp-cursor:sdk-events]";
 
 export const SESSION_MANIFEST = "session.json";
 export const SESSION_PI_SESSION_SNAPSHOT = "pi-session.jsonl";

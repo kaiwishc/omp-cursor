@@ -1,6 +1,6 @@
 import { AuthenticationError } from "@cursor/sdk";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Type } from "typebox";
+import { Type } from "@oh-my-pi/omptype/typebox"
 import {
 	resetCursorProviderTestState,
 	mockedCreate,
@@ -20,7 +20,7 @@ import {
 import { CursorPiToolBridgeRunImpl } from "../src/cursor-pi-tool-bridge-run.js";
 import { __testUtils as cursorSdkProcessGuardTestUtils } from "../src/cursor-sdk-process-error-guard.js";
 import { streamCursor } from "../src/cursor-provider.js";
-import { writeFileSync, rmSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -82,12 +82,47 @@ describe("streamCursor auth and abort", () => {
 		const events = await collectEvents(stream);
 
 		const error = getErrorEvent(events);
-		expect(error.error.errorMessage).toContain("/login");
+		expect(error.error.errorMessage).toContain("~/.omp/agent/cursor-sdk.json");
 		expect(error.error.errorMessage).toContain("CURSOR_API_KEY");
 		expect(error.error.errorMessage).toContain("--api-key");
 	});
 
-	it.each(["CURSOR_API_KEY", "$CURSOR_API_KEY", "${CURSOR_API_KEY}", "pi-cursor-sdk-cursor-api-key-placeholder"])(
+	it("uses the fixed user config when the provider turn has no caller key", async () => {
+		const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+		const originalKey = process.env.CURSOR_API_KEY;
+		const agentDir = mkdtempSync(join(tmpdir(), "pi-cursor-stream-auth-"));
+		process.env.PI_CODING_AGENT_DIR = agentDir;
+		delete process.env.CURSOR_API_KEY;
+		const configPath = join(agentDir, "cursor-sdk.json");
+		writeFileSync(configPath, JSON.stringify({ apiKey: "config-key-123" }));
+		if (process.platform !== "win32") chmodSync(configPath, 0o600);
+		const mockSend = vi.fn().mockResolvedValue({
+			id: "run-1",
+			agentId: "agent-1",
+			status: "finished",
+			wait: vi.fn().mockResolvedValue({ id: "run-1", status: "finished" }),
+			cancel: vi.fn(),
+			supports: () => true,
+			unsupportedReason: () => undefined,
+		});
+		mockCreatedAgent({
+			send: mockSend,
+			[Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+		});
+
+		try {
+			await collectEvents(streamCursor(makeModel(), makeContext(), { apiKey: undefined }));
+			expect(mockedCreate).toHaveBeenCalledWith(expect.objectContaining({ apiKey: "config-key-123" }));
+		} finally {
+			if (originalAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+			else process.env.PI_CODING_AGENT_DIR = originalAgentDir;
+			if (originalKey === undefined) delete process.env.CURSOR_API_KEY;
+			else process.env.CURSOR_API_KEY = originalKey;
+			rmSync(agentDir, { recursive: true, force: true });
+		}
+	});
+
+	it.each(["CURSOR_API_KEY", "$CURSOR_API_KEY", "${CURSOR_API_KEY}"])(
 		"treats unresolved %s provider placeholders as a missing API key",
 		async (placeholder) => {
 			const originalKey = process.env.CURSOR_API_KEY;
@@ -99,7 +134,7 @@ describe("streamCursor auth and abort", () => {
 				const error = getErrorEvent(events);
 				expect(error).toBeDefined();
 				expect(error.error.errorMessage).toBe(
-					"Cursor SDK runs require a Cursor SDK API key. Cursor Agent CLI/Desktop login is not reused. Run /login -> Use an API key -> Cursor, set CURSOR_API_KEY before starting pi, or restart pi with --api-key.",
+					"Cursor SDK runs require a Cursor SDK API key. Configure CURSOR_API_KEY, apiKey in ~/.omp/agent/cursor-sdk.json, or pass --api-key to OMP.",
 				);
 				expect(mockedCreate).not.toHaveBeenCalled();
 			} finally {
@@ -112,7 +147,7 @@ describe("streamCursor auth and abort", () => {
 		},
 	);
 
-	it.each(["CURSOR_API_KEY", "$CURSOR_API_KEY", "${CURSOR_API_KEY}", "pi-cursor-sdk-cursor-api-key-placeholder"])(
+	it.each(["CURSOR_API_KEY", "$CURSOR_API_KEY", "${CURSOR_API_KEY}"])(
 		"resolves %s provider placeholders through the env var when present",
 		async (placeholder) => {
 			const originalKey = process.env.CURSOR_API_KEY;
@@ -154,7 +189,7 @@ describe("streamCursor auth and abort", () => {
 
 		const error = getErrorEvent(events);
 		expect(error.error.errorMessage).toContain("Cursor SDK request failed");
-		expect(error.error.errorMessage).toContain("/login");
+		expect(error.error.errorMessage).toContain("~/.omp/agent/cursor-sdk.json");
 		expect(error.error.errorMessage).toContain("CURSOR_API_KEY");
 		expect(error.error.errorMessage).toContain("--api-key");
 		expect(error.error.errorMessage).not.toBe("Error");
@@ -169,7 +204,7 @@ describe("streamCursor auth and abort", () => {
 		const error = getErrorEvent(events);
 		const message = error.error.errorMessage;
 		expect(message).toContain("invalid or unauthorized");
-		expect(message).toContain("/login");
+		expect(message).toContain("~/.omp/agent/cursor-sdk.json");
 		expect(message).toContain("CURSOR_API_KEY");
 		expect(message).not.toContain("super-secret-key-12345");
 	});
@@ -210,7 +245,7 @@ describe("streamCursor auth and abort", () => {
 		const error = getErrorEvent(events);
 		expect(error.reason).toBe("error");
 		expect(error.error.errorMessage).toContain("invalid or unauthorized");
-		expect(error.error.errorMessage).toContain("/login");
+		expect(error.error.errorMessage).toContain("~/.omp/agent/cursor-sdk.json");
 		expect(error.error.errorMessage).toContain("CURSOR_API_KEY");
 	});
 
@@ -426,7 +461,7 @@ describe("streamCursor auth and abort", () => {
 	});
 
 	it("emits start before sanitized error and disposes abort suppression when debug run dir setup fails", async () => {
-		const invalidRunDirFile = join(tmpdir(), `pi-cursor-sdk-debug-run-dir-${process.pid}`);
+		const invalidRunDirFile = join(tmpdir(), `omp-cursor-debug-run-dir-${process.pid}`);
 		writeFileSync(invalidRunDirFile, "not-a-directory");
 		const previousDebug = process.env.PI_CURSOR_SDK_EVENT_DEBUG;
 		const previousRunDir = process.env.PI_CURSOR_SDK_EVENT_DEBUG_RUN_DIR;

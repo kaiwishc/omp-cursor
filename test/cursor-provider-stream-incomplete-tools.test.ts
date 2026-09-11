@@ -112,7 +112,7 @@ describe("streamCursor incomplete tools", () => {
 		});
 
 		it("records discarded incomplete started tool calls to coordinator-events.jsonl when PI_CURSOR_SDK_EVENT_DEBUG is enabled", async () => {
-			const artifactDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-provider-discarded-debug-"));
+			const artifactDir = mkdtempSync(join(tmpdir(), "omp-cursor-provider-discarded-debug-"));
 			process.env.PI_CURSOR_SDK_EVENT_DEBUG = "1";
 			process.env.PI_CURSOR_SDK_EVENT_DEBUG_RUN_DIR = artifactDir;
 			const mockSend = vi.fn().mockImplementation(async (_msg: unknown, opts: { onDelta: CursorDeltaHandler }) => {
@@ -147,7 +147,7 @@ describe("streamCursor incomplete tools", () => {
 		});
 
 		it("suppresses incomplete missing-file reads with final error text while keeping debug evidence", async () => {
-			const artifactDir = mkdtempSync(join(tmpdir(), "pi-cursor-sdk-provider-missing-read-debug-"));
+			const artifactDir = mkdtempSync(join(tmpdir(), "omp-cursor-provider-missing-read-debug-"));
 			process.env.PI_CURSOR_SDK_EVENT_DEBUG = "1";
 			process.env.PI_CURSOR_SDK_EVENT_DEBUG_RUN_DIR = artifactDir;
 			const mockSend = vi.fn().mockImplementation(async (_msg: unknown, opts: { onDelta: CursorDeltaHandler }) => {

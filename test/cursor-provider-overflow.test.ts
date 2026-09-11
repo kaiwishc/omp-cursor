@@ -3,10 +3,9 @@ import {
 	CURSOR_OVERFLOW_MARKER,
 	normalizeCursorOverflowErrorMessage,
 	rewriteCursorOverflowAssistantMessage,
-	registerCursorOverflowNormalization,
 } from "../src/cursor-provider-overflow.js";
 import { makeAssistantMessage } from "./helpers/pi-harness.js";
-import type { AssistantMessage } from "@earendil-works/pi-ai";
+import type { AssistantMessage } from "@oh-my-pi/pi-ai";
 
 function assistantError(provider: string | undefined, errorMessage?: string): AssistantMessage {
 	return {
@@ -18,7 +17,7 @@ function assistantError(provider: string | undefined, errorMessage?: string): As
 }
 
 describe("normalizeCursorOverflowErrorMessage", () => {
-	it("rewrites explicit Cursor context-length failures to pi's overflow form", () => {
+	it("rewrites explicit Cursor context-length failures to OMP's overflow form", () => {
 		expect(normalizeCursorOverflowErrorMessage("Your input exceeds the context window of this model")).toBe(
 			`${CURSOR_OVERFLOW_MARKER}: Your input exceeds the context window of this model`,
 		);
@@ -84,16 +83,5 @@ describe("rewriteCursorOverflowAssistantMessage", () => {
 				true,
 			),
 		).toBeUndefined();
-	});
-});
-
-describe("registerCursorOverflowNormalization", () => {
-	it("registers a message_end handler", () => {
-		const registered: string[] = [];
-		const fakeApi = { on: (event: string) => registered.push(event) } as unknown as Parameters<
-			typeof registerCursorOverflowNormalization
-		>[0];
-		registerCursorOverflowNormalization(fakeApi);
-		expect(registered).toContain("message_end");
 	});
 });

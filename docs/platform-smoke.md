@@ -12,7 +12,7 @@ Crabbox best-practice baseline applied from `~/Projects/crabbox`: Crabbox owns l
 
 ## Decision
 
-Crabbox is the required local platform smoke runner for `pi-cursor-sdk` releases and release-ready changes that touch Cursor provider/runtime behavior. PRs that touch actual cloud runtime execution must also run `npm run smoke:cloud`.
+Crabbox is the required local platform smoke runner for `omp-cursor` releases and release-ready changes that touch Cursor provider/runtime behavior. PRs that touch actual cloud runtime execution must also run `npm run smoke:cloud`.
 
 Routine OMP adaptation commits use the repository's verification lanes instead of this cross-platform release gate.
 
@@ -48,7 +48,7 @@ No partial adoption exists. The release evidence must include macOS, Ubuntu, and
 - No Crabbox broker/coordinator dependency.
 - No release gate that runs on only one operating system.
 - No release gate that proves command behavior but not TUI visual behavior.
-- No platform release gate based on `pi -e .`.
+- No platform release gate based on `omp -e .`.
 - No skipped target because setup is missing; missing setup is a doctor failure.
 - No one-prompt-per-card visual matrix.
 - No `tmux` as the canonical visual test contract.
@@ -86,7 +86,7 @@ scenario + target capability + artifact contract
 
 not a one-off shell script.
 
-Crabbox is deliberately kept as the transport/lifecycle layer. It must not be treated as proof that the pi extension behavior passed; every suite still fails or passes from project-owned assertions and artifact manifests.
+Crabbox is deliberately kept as the transport/lifecycle layer. It must not be treated as proof that the OMP extension behavior passed; every suite still fails or passes from project-owned assertions and artifact manifests.
 
 High-level flow:
 
@@ -142,8 +142,8 @@ Runtime budget is part of the contract:
 
 - `smoke:platform:doctor` never calls Cursor.
 - `platform-build` runs once per target and is the only suite that performs the full local CI/build/typecheck/package gate. Its target invocations raise only Vitest's default per-test timeout to 15 seconds for host-contention headroom; normal `npm test` keeps the 5-second default, and explicit longer integration-test timeouts still apply.
-- Live suites reuse the target checkout and prepared `node_modules` when run after `platform-build`; they do not repeat `npm ci` in a target-session release run. Their interactive Pi process sets `PI_OFFLINE=1` to skip unrelated startup catalog/update probes; the scenario's explicit Cursor provider turn remains live. The PTY launches Pi's JavaScript entry with direct Node argv so multiline prompts remain one positional message on every target.
-- Live and local-resume suites share one target-local packed-install prep directory per target-session release run. The first such suite runs `npm pack` and `npm install --no-save <tarball>` once. Visual/abort suites install that packed path with `pi install --approve -l`; local-resume lanes pass the same packed package path to their source-tree smoke harness instead of loading the checkout extension.
+- Live suites reuse the target checkout and prepared `node_modules` when run after `platform-build`; they do not repeat `npm ci` in a target-session release run. Their interactive OMP process sets `PI_OFFLINE=1` to skip unrelated startup catalog/update probes; the scenario's explicit Cursor provider turn remains live. The PTY launches the bundled OMP `dist/cli.js` directly through its Bun shebang so multiline prompts remain one positional message on every target.
+- Live and local-resume suites share one target-local packed-install prep directory per target-session release run. The first such suite runs `npm pack` and `npm install --no-save <tarball>` once. Visual/abort suites install that packed path with `omp plugin install --local`; local-resume lanes pass the same packed package path to their source-tree smoke harness instead of loading the checkout extension.
 - Visual coverage is batched into one native prompt, one focused HTTP/1.1 transport prompt, one bridge prompt, and one abort/cleanup prompt per target. Do not split the card matrices into one prompt per card.
 - The gate is fail-fast by target to avoid burning Cursor calls after a platform has already failed.
 
@@ -165,7 +165,7 @@ Cloud validation stays separate from `smoke:platform:all`. Releases that touch a
 npm run smoke:cloud
 ```
 
-The no-flag command is the required `cursor/grok-4.6` matrix. It uses current `gh` CLI authentication to create one private throwaway GitHub repository, seeds clean `main`, `starting-ref`, and `direct-push` branches, and runs persisted-session named lanes for:
+The no-flag command is the required `cursor-sdk/grok-4.6` matrix. It uses current `gh` CLI authentication to create one private throwaway GitHub repository, seeds clean `main`, `starting-ref`, and `direct-push` branches, and runs persisted-session named lanes for:
 
 - cancellation, with exact agent/run IDs captured before abort, retained `runIdSource` (`metadata` or installed-SDK `Agent.listRuns()` recovery), and terminal `cancelled` independently read through the SDK;
 - explicit HTTPS repository plus `startingRef`, requiring a distinct pushed cloud branch with remote-content and starting-ref-ancestry proof, recording whether the SDK returned branch metadata, and validating any returned PR URL through GitHub;
@@ -174,9 +174,9 @@ The no-flag command is the required `cursor/grok-4.6` matrix. It uses current `g
 - `/cursor-cloud delete <exact bc-id> --yes` in the run's persisted session, followed by independent `Agent.get` not-found/404 and archived-inclusive list exclusion;
 - passive artifacts and raw usage, recording observed true/false and validating bounded known shapes when the account returns either. Absence is an observation, not a skipped lane.
 
-Prerequisites are intentionally strict: `CURSOR_API_KEY` with cloud entitlement, Cursor's GitHub integration with access to the new private repository, and `gh` auth with private-repository create, clone/push, inspect, and delete capability. Missing auth, entitlement, integration/access, required output, or any cleanup proof fails the gate. The GitHub mutation scope is destructive but bounded to self-created repositories named `pi-cursor-cloud-smoke-<uuid>` with an exact ownership-marker description. A cleanup handle is exposed only after create ownership is established (or an ambiguous create probe observes that exact marker). Deletion rejects arbitrary repository handles and independently requires an authenticated GitHub API HTTP 404 afterward.
+Prerequisites are intentionally strict: `CURSOR_API_KEY` with cloud entitlement, Cursor's GitHub integration with access to the new private repository, and `gh` auth with private-repository create, clone/push, inspect, and delete capability. Missing auth, entitlement, integration/access, required output, or any cleanup proof fails the gate. The GitHub mutation scope is destructive but bounded to self-created repositories named `omp-cursor-cloud-smoke-<uuid>` with an exact ownership-marker description. A...
 
-Every path harvests exact IDs from provider metadata and canonical lifecycle session JSONL/journals. Final cleanup takes their union, archives every still-existing agent, requires `archived: true`, deletes it, then requires `Agent.get` not-found/404 and `Agent.list({ runtime: "cloud", includeArchived: true })` exclusion. `SIGINT` and `SIGTERM` first terminate the active detached Pi child, reject the lane, and then enter the same agent/repository cleanup coordinator before the process exits. Evidence is staged to a temporary file, then an event-loop signal checkpoint runs immediately before the atomic rename; that rename is the evidence commit point. A signal observed before it discards staged evidence. A signal dispatched after it but before the final terminal checkpoint still fails the process and suppresses the success marker, while the committed completed-cleanup summary remains valid. Emitting the success marker is the terminal-success boundary. Signal handlers stay installed through process teardown and independently set a failing exit code, so a still-active process cannot exit successfully if a signal is dispatched after that boundary, even when the marker was already written. Cleanup or repository-deletion verification failure fails the gate and retains the raw temporary artifact root. Successful runs remove raw artifacts unless `CURSOR_CLOUD_SMOKE_KEEP_ARTIFACTS=1`.
+Every path harvests exact IDs from provider metadata and canonical lifecycle session JSONL/journals. Final cleanup takes their union, archives every still-existing agent, requires `archived: true`, deletes it, then requires `Agent.get` not-found/404 and `Agent.list({ runtime: "cloud", includeArchived: true })` exclusion. `SIGINT` and `SIGTERM` first terminate the active detached OMP child, reject the lane, and then enter the same agent/repository cleanup coordinator before the process exits. Evidence is s...
 
 Before removing successful raw artifacts, the gate atomically replaces `docs/evidence/cursor-cloud-smoke-matrix-latest.json` with a known-shape summary containing timestamp, model, lane observations, exact agent/run IDs, agent cleanup proof, repository cleanup proof, and retained evidence provenance. Provenance records the extension package version, installed `@cursor/sdk` version, git source revision, and a deterministic `packageSourceSha256` over the full published package surface from `package.json` `files` plus `package.json` itself (relative path + bytes; directories expanded; symlinks/non-regular paths rejected). Generated `docs/evidence/*` is outside that published surface and is not hashed. Because successful pre-commit checkouts may be uncommitted, the package-source hash is authoritative for code identity and the revision is baseline identity only. The summary is a runtime-validated known shape (explicit six-lane allowlist, complete lane-agent cleanup coverage, repository proof, provenance) that round-trips through the persisted-evidence validator with no prompts or raw output, and must pass canonical secret scrubbing plus forbidden-field scanning; a run or cleanup failure observed before the atomic rename commit point never overwrites the last successful summary. A signal first dispatched after that point can fail the process while retaining the newly committed completed-cleanup summary, as defined above. Offline release-gate resource coordination (run → harvest IDs → cleanup agents → cleanup repo → evidence only on complete success) lives in `coordinateCloudSmokeReleaseGate()` inside `scripts/lib/cloud-smoke-cleanup-evidence.mjs`. GitHub throwaway fixture ownership lives in `scripts/lib/cloud-smoke-github.mjs`, signal-safe child shutdown lives in `scripts/lib/cloud-smoke-shutdown.mjs`, and `scripts/cloud-runtime-smoke.mjs` keeps concrete lane logic.
 
@@ -188,16 +188,16 @@ This cloud gate does not replace the local macOS/Ubuntu/Windows `smoke:platform:
 
 The platform matrix includes the required local-resume lanes: restart, safety, tool-surface, abort, tree, copy/switch, fallback, compaction, default/opt-out proof, and recorded-ID-only cleanup. Platform lanes run those scripts against the target's shared packed package path, then copy each lane's session JSONL, Cursor SDK debug metadata, runtime-launch record, and other bounded smoke artifacts into its canonical platform suite directory. The same scripts still load the source checkout by default when run directly as focused host-local inner-loop checks. Windows uses the intentionally short target-side evidence component `lr` so the Cursor SDK's derived SQLite path remains below legacy `MAX_PATH`; every suite removes and verifies that directory before use, failing closed on stale or locked evidence.
 
-The smoke starts one sessionful local Cursor run with local resume enabled by default, records the SDK agent id from provider debug metadata, restarts pi against the same session, asks for the remembered marker, and verifies:
+The smoke starts one sessionful local Cursor run with local resume enabled by default, records the SDK agent id from provider debug metadata, restarts OMP against the same session, asks for the remembered marker, and verifies:
 
 - the first run records `localResume: true` and `resumedAgent: false`;
 - the second run records `localResume: true`, `resumedAgent: true`, and a one-time bootstrap send plan;
 - both runs use the same local SDK `agent-*` id;
-- the remembered marker survives the process restart from the bootstrapped current pi transcript.
+- the remembered marker survives the process restart from the bootstrapped current OMP transcript.
 
 The safety lane verifies an original session resumes the same local agent after restart, then proves cloned-session copied resume entries and a fork before a future-marker prompt both create a new local `agent-*`. The forked earlier branch must not reveal the future marker.
 
-The tool-surface lane verifies same-session restart reuses the original local agent with the same bridge/tool surface, then enables the builtin pi tool bridge surface and verifies the old resume handle is rejected, a bridge run is created, a new local `agent-*` is used, and a new resume pool key is persisted.
+The tool-surface lane verifies same-session restart reuses the original local agent with the same bridge/tool surface, then enables the builtin OMP tool bridge surface and verifies the old resume handle is rejected, a bridge run is created, a new local `agent-*` is used, and a new resume pool key is persisted.
 
 The abort lane verifies a completed bridge-enabled turn persists a local resume handle, an interrupted long-running bridge turn starts from that handle but does not append a new one, and the next same-surface restart uses a new local `agent-*` instead of resuming the pre-abort agent.
 
@@ -205,9 +205,9 @@ The tree lane verifies both realistic navigation to an earlier assistant entry a
 
 The copy/switch lane copies a session file containing resume custom entries, switches to that copied file, and verifies the copied handle is rejected while transcript bootstrap still recalls the marker.
 
-The fallback lane rewrites a persisted handle to a missing local SDK `agent-*`, verifies create+bootstrap fallback, and asserts the continuity notice is emitted in `pi-stream-events.jsonl`.
+The fallback lane rewrites a persisted handle to a missing local SDK `agent-*`, verifies create+bootstrap fallback, and asserts the continuity notice is emitted in `omp-stream-events.jsonl`.
 
-The compaction lane uses an isolated temp pi settings file with `compaction.keepRecentTokens: 1` to force manual compaction without huge dummy prompts. It verifies the pre-compaction SDK agent is not reused, the new handle records `compactionGeneration: 1`, and restart resumes the post-compaction agent.
+The compaction lane uses an isolated temp OMP settings file with `compaction.keepRecentTokens: 1` to force manual compaction without huge dummy prompts. It verifies the pre-compaction SDK agent is not reused, the new handle records `compactionGeneration: 1`, and restart resumes the post-compaction agent.
 
 The default/opt-out lane verifies the built-in local resume default resumes, then verifies `PI_CURSOR_LOCAL_RESUME=0` opts out and creates a new agent while bootstrapping the transcript.
 
@@ -280,7 +280,7 @@ Add `.artifacts/`, `.crabbox/`, `.debug/`, and `.platform-smoke-runs/` to `.giti
 
 ## Configuration source
 
-All repo-specific behavior lives in `platform-smoke.config.mjs` so the framework can be reused by other pi extensions.
+All repo-specific behavior lives in `platform-smoke.config.mjs` so the framework can be reused by other OMP extensions.
 
 Required config fields:
 
@@ -288,8 +288,8 @@ Required config fields:
 import { LOCAL_RESUME_SUITE_NAMES } from "./scripts/platform-smoke/local-resume-suites.mjs";
 
 export default {
-  packageName: "pi-cursor-sdk",
-  cursorModel: "cursor/grok-4.6",
+  packageName: "omp-cursor",
+  cursorModel: "cursor-sdk/grok-4.6",
   artifactRoot: ".artifacts/platform-smoke",
   artifactRetention: {
     maxRunDirs: 18,
@@ -309,20 +309,20 @@ export default {
     install: "Homebrew package or PLATFORM_SMOKE_CRABBOX override",
     minVersion: "0.26.0",
   },
-  ubuntuContainerImage: "pi-cursor-sdk-platform-node:24.16-root",
+  ubuntuContainerImage: "omp-cursor-platform-node:24.16-root",
   ubuntuContainerBaseImage: "cimg/node:24.16",
   nodeValidationMajor: 24,
   windowsParallels: {
-    sourceVm: "pi-extension-windows-template",
+    sourceVm: "omp-extension-windows-template",
     snapshot: "crabbox-ready",
-    workRoot: "C:\\crabbox\\pi-cursor-sdk",
+  workRoot: "C:\\crabbox\\omp-cursor",
   },
 };
 ```
 
 `ubuntuContainerBaseImage` is the Ubuntu 24.04 Node 24 base with the current glibc baseline for native test dependencies. The runner builds the local `ubuntuContainerImage` wrapper with only `USER root` changed before warmup because Crabbox 0.36.0 must install SSH/Git/rsync/curl during bootstrap and `cimg/node` defaults to an unprivileged user. An explicit `PLATFORM_SMOKE_UBUNTU_IMAGE` bypasses that build and must already support Crabbox bootstrap. `nodeValidationMajor: 24` is the release-smoke validation baseline. It does not change the package engine by itself. A separate compatibility lane can test Node 22.19 later; this required gate validates Node 24 on every target.
 
-`windowsParallels` records this repo's default shared Windows template contract. Environment overrides may point at a temporary candidate template during infrastructure work, but release runs should use the shared `pi-extension-windows-template` / `crabbox-ready` baseline unless this document is updated.
+`windowsParallels` records this repo's default shared Windows template contract. Environment overrides may point at a temporary candidate template during infrastructure work, but release runs should use the shared `omp-extension-windows-template` / `crabbox-ready` baseline unless this document is updated.
 
 `artifactRetention` bounds local host evidence growth under `artifactRoot`. `smoke:platform:run` prunes only top-level directories named `run-<timestamp>-<suffix>` before starting a new matrix; it leaves non-run/manual directories untouched and preserves directories newer than `preserveRecentHours` to avoid deleting evidence from active or very recent runs. Doctor is read-only and does not prune artifacts.
 
@@ -336,15 +336,15 @@ PLATFORM_SMOKE_CRABBOX=/opt/homebrew/bin/crabbox
 
 PLATFORM_SMOKE_MAC_HOST=localhost
 PLATFORM_SMOKE_MAC_USER="$USER"
-PLATFORM_SMOKE_MAC_WORK_ROOT="/Users/$USER/crabbox/pi-cursor-sdk"
+PLATFORM_SMOKE_MAC_WORK_ROOT="/Users/$USER/crabbox/omp-cursor"
 # Optional prebuilt replacement; bypasses the configured local root-wrapper build.
 PLATFORM_SMOKE_UBUNTU_IMAGE="registry.example.com/ubuntu-node24-crabbox:latest"
 
 # Optional Parallels overrides; defaults come from platform-smoke.config.mjs.
-PLATFORM_SMOKE_WINDOWS_VM="pi-extension-windows-template"
+PLATFORM_SMOKE_WINDOWS_VM="omp-extension-windows-template"
 PLATFORM_SMOKE_WINDOWS_SNAPSHOT="crabbox-ready"
 PLATFORM_SMOKE_WINDOWS_USER="<windows-ssh-user>"
-PLATFORM_SMOKE_WINDOWS_NATIVE_WORK_ROOT="C:\\crabbox\\pi-cursor-sdk"
+PLATFORM_SMOKE_WINDOWS_NATIVE_WORK_ROOT="C:\\crabbox\\omp-cursor"
 
 # Required for live suites; doctor fails before spending Cursor tokens if absent.
 CURSOR_API_KEY="..."
@@ -359,8 +359,8 @@ Every target session uses a unique run root.
 ```text
 <targetWorkRoot>/runs/<run-id>/
   extension-source/       # synced repository under test
-  test-workspace/         # live pi cwd and deterministic fixture repo
-  pi-project/             # target-local pi settings for packed install
+  test-workspace/         # live OMP cwd and deterministic fixture repo
+  omp-project/             # target-local OMP settings for packed install
   artifacts/              # target-side suite artifacts
   pack/                   # packed tarball and install material
 
@@ -374,15 +374,15 @@ Definitions:
 
 - `extensionSourceRoot`: synced repo used for `npm ci`, `npm test`, `npm run typecheck`, and `npm pack`.
 - `testWorkspaceRoot`: cwd used by live Cursor suites. It contains deterministic fixture files the prompts operate on: `package.json`, `README.md`, `src/`, and suite scratch directories.
-- `piProjectRoot`: target-local pi project where platform-build proves packed install.
+- `ompProjectRoot`: target-local OMP project where platform-build proves packed install.
 - `livePrepRoot`: target-local shared live-suite prep where the first live suite installs the packed tarball once for reuse by later live suites in the same target session.
 
-Live suites run in a suite-local `testWorkspaceRoot`. The extension loaded by pi is the packed tarball package path from `livePrepRoot`, installed into that suite-local workspace with `pi install --approve -l`; no live suite uses `pi -e .`.
+Live suites run in a suite-local `testWorkspaceRoot`. The extension loaded by OMP is the packed tarball package path from `livePrepRoot`, installed into that suite-local workspace with `omp plugin install --local`; no live suite uses `omp -e .`.
 
 The runner must prove this by recording:
 
 - packed tarball path;
-- `pi list --approve` output from the suite-local project after `pi install --approve -l <packed package path>`;
+- `omp plugin list --json` output from the suite-local project after `omp plugin install --local <packed package path>`;
 - command line showing no `-e .`;
 - live suite cwd as `testWorkspaceRoot`.
 
@@ -409,12 +409,12 @@ Required:
 
 ### Windows template VM
 
-The user's daily Windows VM is not the long-term test target. Use the shared pi-extension Parallels template unless this project documents a replacement with equal evidence:
+The user's daily Windows VM is not the long-term test target. Use the shared OMP-extension Parallels template unless this project documents a replacement with equal evidence:
 
 ```text
-source VM: pi-extension-windows-template
+source VM: omp-extension-windows-template
 snapshot: crabbox-ready
-work root: C:\\crabbox\\pi-cursor-sdk
+work root: C:\\crabbox\\omp-cursor
 ```
 
 Template requirements:
@@ -430,7 +430,7 @@ Template requirements:
 - `node-pty` self-test passes in native Windows.
 - Source VM is powered off.
 - Snapshot named `crabbox-ready` exists.
-- The template contains reusable platform tools only; no repo checkout, `.pi` state, Cursor API key, browser auth, smoke artifacts, or temp files.
+- The template contains reusable platform tools only; no repo checkout, `.omp` state, Cursor API key, browser auth, smoke artifacts, or temp files.
 
 Crabbox Parallels creates linked clones from the powered-off snapshot. The source template VM is never used directly for smoke runs. If a run has to install a missing global tool or browser on every Windows clone, treat that as template drift and refresh the shared template instead of making the per-run fallback normal.
 
@@ -469,7 +469,7 @@ Doctor checks:
 16. `rsync` is available on macOS and Ubuntu.
 17. `tar` is available on macOS and native Windows.
 18. `node-pty` self-test passes on every target.
-19. Target pi tool probe proves the shell tool accepts platform-rendered commands on every target.
+19. Target OMP tool probe proves the shell tool accepts platform-rendered commands on every target.
 20. Host-side xterm/Playwright render self-test passes by rendering a minimal ANSI fixture through the repo xterm helper and launching Playwright Chromium to write a tiny PNG. If this fails, run `npm install` and `npx playwright install chromium` before live suites.
 21. `CURSOR_API_KEY` is present.
 22. Artifact root is writable.
@@ -501,9 +501,9 @@ Per target, `platform-build` must:
 5. Run `npm run typecheck`.
 6. Run `npm pack`.
 7. Create `testWorkspaceRoot` with deterministic fixture files copied from the repo.
-8. Create `piProjectRoot`.
-9. Install the packed tarball into `piProjectRoot` with `pi install --approve -l <tarball>`.
-10. Run `pi list --approve` and assert the installed package points at the packed tarball/install, not `-e .`.
+8. Create `ompProjectRoot`.
+9. Install the packed tarball into `ompProjectRoot` with `omp plugin install --local <tarball>`.
+10. Run `omp plugin list --json` and assert the installed package points at the packed tarball/install, not `-e .`.
 
 ## Required suites
 
@@ -517,7 +517,7 @@ Purpose:
 - fail before spending Cursor tokens;
 - produce the packed extension used by later suites.
 
-The host `smoke:platform:all` entrypoint enforces doctor first before running targets. Required artifacts include `node-version.txt`, `npm-version.txt`, stdout/stderr for `npm ci`, `npm run check:platform-smoke`, `npm test`, `npm run typecheck`, `npm pack`, packed npm install, `pi install --approve`, and `pi list --approve`, plus `packed-tarball.txt`, `summary.json`, `artifact-manifest.json`, `assertions.json`, and `failures.md` on failed assertions.
+The host `smoke:platform:all` entrypoint enforces doctor first before running targets. Required artifacts include `node-version.txt`, `npm-version.txt`, stdout/stderr for `npm ci`, `npm run check:platform-smoke`, `npm test`, `npm run typecheck`, `npm pack`, packed npm install, `omp plugin install --local`, and `omp plugin list --json`, plus `packed-tarball.txt`, `summary.json`, `artifact-manifest.json`, `assertions.json`, and `failures.md` on failed assertions.
 
 ### `cursor-local-resume-restart`
 
@@ -525,11 +525,11 @@ Cursor calls: `2`.
 
 Purpose:
 
-- prove guarded local resume default-on behavior across a pi process restart on each required OS;
+- prove guarded local resume default-on behavior across an OMP process restart on each required OS;
 - assert the first turn creates a local `agent-*` and the second turn resumes the same `agent-*`;
 - force local runtime and clear cloud env knobs so ambient cloud settings cannot satisfy this suite.
 
-The suite prepares or reuses the target's packed npm install, runs `npm run smoke:local-resume` with that packed extension path, and asserts the `local-resume-smoke-ok` marker plus the resumed local agent id line. It also requires extracted session, debug, and runtime-launch evidence under `local-resume-evidence/`; checkout `pi -e <repo-root>` is reserved for the standalone inner-loop command.
+The suite prepares or reuses the target's packed npm install, runs `npm run smoke:local-resume` with that packed extension path, and asserts the `local-resume-smoke-ok` marker plus the resumed local agent id line. It also requires extracted session, debug, and runtime-launch evidence under `local-resume-evidence/`; checkout `omp -e <repo-root>` is reserved for the standalone inner-loop command.
 
 ### `cursor-local-resume-*` focused proof lanes
 
@@ -584,11 +584,11 @@ Required prompt template:
 ```text
 Native visual matrix.
 
-Use Cursor-native tools only. Do not use pi__ tools.
+Use Cursor-native tools only. Do not use `pi__` bridge tools.
 
 Steps:
 1. read ./package.json and remember the package name.
-2. grep ./README.md for "pi-cursor-sdk".
+2. grep ./README.md for "omp-cursor".
 3. find README.md from repo root.
 4. find src/cursor-provider.ts from repo root.
 5. run shell: <platform-rendered-success-command>
@@ -664,13 +664,13 @@ PI_CURSOR_SDK_EVENT_DEBUG=1
 
 Purpose:
 
-- prove pi bridge request routing;
+- prove OMP bridge request routing;
 - prove successful bridge tool card;
 - prove failed bridge tool card;
 - prove bridge shell card;
-- prove bridge diagnostics and JSONL use real pi tool names.
+- prove bridge diagnostics and JSONL use real OMP tool names.
 
-The bridge shell call uses pi's `bash` tool on every target, including Windows native. The command is shell-neutral and relies only on Node, which every target already validates:
+The bridge shell call uses OMP's `bash` tool on every target, including Windows native. The command is shell-neutral and relies only on Node, which every target already validates:
 
 ```text
 node -e "console.log('bridge visual smoke')"
@@ -681,14 +681,14 @@ Required prompt template:
 ```text
 Bridge visual matrix.
 
-Use pi bridge tools only. Use exact pi__ names.
+Use OMP bridge tools only. Use exact `pi__` names.
 
-You must make exactly three pi bridge tool calls before the final answer: pi__bash, pi__read, then pi__read. Do not answer until all three calls complete.
+You must make exactly three OMP bridge tool calls before the final answer: `pi__bash`, `pi__read`, then `pi__read`. Do not answer until all three calls complete.
 
 Steps:
-1. call pi__bash with command: <platform-rendered-shell-command>
-2. call pi__read on ./package.json.
-3. call pi__read on ./definitely-missing-platform-smoke-file.txt.
+1. call `pi__bash` with command: <platform-rendered-shell-command>
+2. call `pi__read` on ./package.json.
+3. call `pi__read` on ./definitely-missing-platform-smoke-file.txt.
 4. answer exactly:
 BRIDGE_MATRIX_OK bash_ok=<yes/no> read_ok=<yes/no> read_missing_error=<yes/no>
 ```
@@ -714,9 +714,9 @@ Required diagnostics evidence:
 
 Required JSONL evidence:
 
-- real pi tool call named `read`, success;
-- real pi tool call named `read`, failure;
-- real pi tool call named `bash`, success;
+- real OMP tool call named `read`, success;
+- real OMP tool call named `read`, failure;
+- real OMP tool call named `bash`, success;
 - final assistant message's last non-empty `text` part contains `BRIDGE_MATRIX_OK`;
 - assistant usage fields are non-negative.
 
@@ -742,7 +742,7 @@ Purpose:
 - prove no orphan processes;
 - prove no false successful answer.
 
-The long-running bridge command uses pi's `bash` tool on every target and relies only on Node, which every target already validates:
+The long-running bridge command uses OMP's `bash` tool on every target and relies only on Node, which every target already validates:
 
 ```text
 node -e "const fs=require('fs');fs.mkdirSync('.debug/platform-smoke',{recursive:true});fs.writeFileSync('.debug/platform-smoke/abort-started.txt',String(process.pid));setTimeout(() => console.log(process.env.PLATFORM_ABORT_MARKER), 30000)"
@@ -857,10 +857,10 @@ npm-pack.stderr.txt
 packed-tarball.txt
 packed-node-install.stdout.txt
 packed-node-install.stderr.txt
-pi-install.stdout.txt
-pi-install.stderr.txt
-pi-list.stdout.txt
-pi-list.stderr.txt
+omp-install.stdout.txt
+omp-install.stderr.txt
+omp-list.stdout.txt
+omp-list.stderr.txt
 ```
 
 Every target-session release run also writes a `lease-cleanup/` suite directory under the same target run id:
@@ -909,7 +909,7 @@ Required local-resume artifacts:
 ```text
 local-resume-evidence.json        # counts retained files by evidence category
 local-resume-evidence/
-  runtime-launches.jsonl          # proves the packed extension path used by each pi process
+  runtime-launches.jsonl          # proves the packed extension path used by each OMP process
   sessions/**/*.jsonl
   debug/**/*                      # Cursor SDK/provider turn metadata
   agent/**/*                      # bounded non-secret runtime state when written
@@ -977,7 +977,7 @@ The runner must binary-safe scan every bounded regular artifact file, including 
 - cookies;
 - bridge endpoint URLs;
 - raw Cursor SDK auth payloads;
-- contents of `~/.pi/agent/auth.json`.
+- contents of `~/.omp/agent/cursor-sdk.json`.
 
 Bridge diagnostics may include safe tool names and correlation IDs only.
 

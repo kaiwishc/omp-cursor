@@ -267,8 +267,8 @@ describe("maintainer scripts shared lib", () => {
 	});
 
 	it("builds timestamped artifact directories under /tmp by default", () => {
-		const dir = defaultTimestampedDir("pi-cursor-sdk-test-prefix");
-		expect(dir.startsWith(resolve("/tmp", "pi-cursor-sdk-test-prefix-"))).toBe(true);
+		const dir = defaultTimestampedDir("omp-cursor-test-prefix");
+		expect(dir.startsWith(resolve("/tmp", "omp-cursor-test-prefix-"))).toBe(true);
 	});
 
 	it("parses JSONL stdout and exposes child shutdown helpers", async () => {

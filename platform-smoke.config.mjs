@@ -1,11 +1,11 @@
-// Platform smoke configuration for pi-cursor-sdk.
-// Reusable across pi extensions: change package name, model IDs, scenarios, and card matrix only.
+// Platform smoke configuration for omp-cursor.
+// Reusable across OMP extensions: change package name, model IDs, scenarios, and card matrix only.
 
 import { LOCAL_RESUME_SUITE_NAMES } from "./scripts/platform-smoke/local-resume-suites.mjs";
 
 export default {
-	packageName: "pi-cursor-sdk",
-	cursorModel: "cursor/grok-4.6",
+	packageName: "omp-cursor",
+	cursorModel: "cursor-sdk/default",
 	artifactRoot: ".artifacts/platform-smoke",
 	artifactRetention: {
 		maxRunDirs: 18,
@@ -25,12 +25,12 @@ export default {
 		install: "Homebrew package or PLATFORM_SMOKE_CRABBOX override",
 		minVersion: "0.26.0",
 	},
-	ubuntuContainerImage: "pi-cursor-sdk-platform-node:24.16-root",
+	ubuntuContainerImage: "omp-cursor-platform-node:24.16-root",
 	ubuntuContainerBaseImage: "cimg/node:24.16",
 	nodeValidationMajor: 24,
 	windowsParallels: {
-		sourceVm: "pi-extension-windows-template",
+		sourceVm: "omp-extension-windows-template",
 		snapshot: "crabbox-ready",
-		workRoot: "C:\\crabbox\\pi-cursor-sdk",
+		workRoot: "C:\\crabbox\\omp-cursor",
 	},
 };

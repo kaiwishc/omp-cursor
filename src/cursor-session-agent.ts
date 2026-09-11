@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { AgentModeOption, LocalAgentOptions, LocalAgentStore, ModelSelection, SDKAgent, SettingSource } from "@cursor/sdk";
-import type { Context } from "@earendil-works/pi-ai";
+import type { Context } from "@oh-my-pi/pi-ai"
 import {
 	getRegisteredCursorPiToolBridge,
 	type CursorPiBridgeToolRequest,
@@ -143,7 +143,7 @@ let deadTransportAgentDisposeTimeoutMs = 3000;
 const terminalDisposedScopeGenerations = new Map<string, number>();
 const scopeCreationGenerations = new Map<string, number>();
 const EMPTY_POOL_STATE: SessionCursorAgentPoolState = { status: "empty" };
-const LOCAL_RESUME_FALLBACK_NOTICE = "Could not resume prior Cursor agent; continuing from current pi transcript in a new Cursor agent.";
+const LOCAL_RESUME_FALLBACK_NOTICE = "Could not resume prior Cursor agent; continuing from current OMP transcript in a new Cursor agent.";
 let nextSessionAgentInstanceId = 1;
 
 export interface CursorLocalSafetyOptions {

@@ -23,7 +23,7 @@ type CursorOnStepPayload = Parameters<NonNullable<SendOptions["onStep"]>>[0];
 describe("streamCursor tool trace", () => {
 	beforeEach(resetCursorProviderTestState);
 
-		it("does not emit pi tool call events for cursor tool deltas", async () => {
+		it("does not emit OMP tool call events for Cursor tool deltas", async () => {
 			const mockSend = vi.fn().mockImplementation(async (_msg: unknown, opts: { onDelta: CursorDeltaHandler }) => {
 				opts.onDelta({ update: { type: "tool-call-started", toolCall: { name: "read_file" }, callId: "c1" } });
 				opts.onDelta({ update: { type: "tool-call-completed", toolCall: { name: "read_file" }, callId: "c1" } });
@@ -50,7 +50,7 @@ describe("streamCursor tool trace", () => {
 			expect(toolEvents).toHaveLength(0);
 		});
 
-		it("surfaces cursor tool results as pi-like trace transcript without polluting final text", async () => {
+		it("surfaces cursor tool results as OMP-like trace transcript without polluting final text", async () => {
 			const mockSend = vi.fn().mockImplementation(async (_msg: unknown, opts: { onDelta: CursorDeltaHandler }) => {
 				opts.onDelta({ update: { type: "tool-call-started", toolCall: { name: "read", args: { path: "README.md" } }, callId: "c1" } });
 				opts.onDelta({
@@ -58,7 +58,7 @@ describe("streamCursor tool trace", () => {
 						type: "tool-call-completed",
 						toolCall: {
 							name: "read",
-							result: { status: "success", value: { content: "# pi-cursor-sdk\n\nReadme body", totalLines: 3, fileSize: 29 } },
+							result: { status: "success", value: { content: "# omp-cursor\n\nReadme body", totalLines: 3, fileSize: 29 } },
 						},
 						callId: "c1",
 					},
@@ -87,7 +87,7 @@ describe("streamCursor tool trace", () => {
 			const done = getDoneEvent(events);
 
 			expect(trace).toContain("read README.md");
-			expect(trace).toContain("# pi-cursor-sdk");
+			expect(trace).toContain("# omp-cursor");
 			expect(trace).not.toContain("Cursor tool: read started");
 			expect(trace).not.toContain("call c1");
 			expect(trace).toContain("Cursor summary: Inspected files");
@@ -103,7 +103,7 @@ describe("streamCursor tool trace", () => {
 						message: {
 							type: "read",
 							args: { path: "README.md" },
-							result: { status: "success", value: { content: "# pi-cursor-sdk" } },
+							result: { status: "success", value: { content: "# omp-cursor" } },
 						},
 					} as CursorOnStepPayload["step"],
 				});
@@ -127,7 +127,7 @@ describe("streamCursor tool trace", () => {
 			const trace = collectThinkingDeltas(events);
 
 			expect(trace).toContain("read README.md");
-			expect(trace).toContain("# pi-cursor-sdk");
+			expect(trace).toContain("# omp-cursor");
 		});
 
 		it("does not mark a started tool incomplete when onStep reports its result without a completion delta", async () => {
@@ -139,7 +139,7 @@ describe("streamCursor tool trace", () => {
 						message: {
 							type: "read",
 							args: { path: "README.md" },
-							result: { status: "success", value: { content: "# pi-cursor-sdk" } },
+							result: { status: "success", value: { content: "# omp-cursor" } },
 						},
 					} as CursorOnStepPayload["step"],
 				});
@@ -163,7 +163,7 @@ describe("streamCursor tool trace", () => {
 			const trace = collectThinkingDeltas(events);
 
 			expect(trace).toContain("read README.md");
-			expect(trace).toContain("# pi-cursor-sdk");
+			expect(trace).toContain("# omp-cursor");
 			expect(trace).not.toContain("Cursor tool started without a completion event");
 		});
 
@@ -177,7 +177,7 @@ describe("streamCursor tool trace", () => {
 						message: {
 							type: "read",
 							args: { path: "README.md" },
-							result: { status: "success", value: { content: "# pi-cursor-sdk" } },
+							result: { status: "success", value: { content: "# omp-cursor" } },
 						},
 					} as CursorOnStepPayload["step"],
 				});
@@ -186,7 +186,7 @@ describe("streamCursor tool trace", () => {
 						type: "tool-call-completed",
 						toolCall: {
 							name: "read",
-							result: { status: "success", value: { content: "# pi-cursor-sdk" } },
+							result: { status: "success", value: { content: "# omp-cursor" } },
 						},
 						callId: "c1",
 					},
@@ -211,7 +211,7 @@ describe("streamCursor tool trace", () => {
 			const trace = collectThinkingDeltas(events);
 
 			expect(trace.match(/read README\.md/g)).toHaveLength(1);
-			expect(trace.match(/# pi-cursor-sdk/g)).toHaveLength(1);
+			expect(trace.match(/# omp-cursor/g)).toHaveLength(1);
 		});
 
 		it("streams Cursor text deltas live and only falls back to final result when no deltas arrive", async () => {

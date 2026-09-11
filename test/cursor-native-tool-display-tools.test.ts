@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
-import { Text } from "@earendil-works/pi-tui";
-import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
-import { Type } from "typebox";
+import { Text } from "@oh-my-pi/pi-tui"
+import type { ToolDefinition } from "@oh-my-pi/pi-coding-agent"
+import { Type } from "@oh-my-pi/omptype/typebox"
 import * as replay from "../src/cursor-native-tool-display-replay.js";
-import { wrapNativeCursorTool } from "../src/cursor-native-tool-display-tools.js";
+import { createNativeCursorToolDefinition, wrapNativeCursorTool } from "../src/cursor-native-tool-display-tools.js";
 import { createRenderContext, createRenderOptions, createRenderTheme } from "./helpers/render-fixtures.js";
 
 describe("wrapNativeCursorTool", () => {
 	it("does not use Cursor replay rendering for ordinary pi edit toolCallIds", () => {
 		const replaySpy = vi.spyOn(replay, "renderCursorReplayResult").mockReturnValue(new Text("", 0, 0));
 		const parameters = Type.Object({});
-		type EditToolDefinition = ToolDefinition<typeof parameters, unknown, unknown>;
+		type EditToolDefinition = ToolDefinition<typeof parameters, unknown>;
 		const delegateRenderResult = vi.fn<NonNullable<EditToolDefinition["renderResult"]>>(() => new Text("pi edit", 0, 0));
 		const definition: EditToolDefinition = {
 			name: "edit",
@@ -41,5 +41,17 @@ describe("wrapNativeCursorTool", () => {
 		expect(replaySpy).not.toHaveBeenCalled();
 		expect(delegateRenderResult).toHaveBeenCalledOnce();
 		replaySpy.mockRestore();
+	});
+
+	it("preserves built-in metadata inherited through native tool instances", () => {
+		for (const toolName of ["read", "edit"] as const) {
+			const definition = createNativeCursorToolDefinition(toolName, process.cwd());
+			const wrapped = wrapNativeCursorTool(definition, () => definition);
+
+			expect(wrapped.name).toBe(definition.name);
+			expect(wrapped.label).toBe(definition.label);
+			expect(wrapped.description).toBe(definition.description);
+			expect(wrapped.parameters).toBe(definition.parameters);
+		}
 	});
 });

@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ModelListItem } from "@cursor/sdk";
-import { SessionManager, type ExtensionContext, type SessionEntry } from "@earendil-works/pi-coding-agent";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import type { ExtensionContext, SessionEntry } from "@oh-my-pi/pi-coding-agent";
 import { CURSOR_HTTP1_ENV } from "../src/cursor-config.js";
 import {
 	__testUtils,
@@ -367,15 +368,15 @@ describe("Cursor fast preference persistence", () => {
 		expect(getEffectiveFastForModelId("composer-2.5")).toBe(false);
 	});
 
-	it("contracts Pi append failure as a possible in-memory partial commit", () => {
-		const manager = SessionManager.create(tmpAgentDir, tmpAgentDir, { id: "fast-append-contract" });
+	it("keeps OMP append failure as an in-memory partial commit", () => {
+		const manager = SessionManager.create(tmpAgentDir, tmpAgentDir);
 		manager.appendMessage({ role: "user", content: "hello", timestamp: 1 });
 		manager.appendMessage(makeAssistantMessage("ready"));
 		const sessionFile = manager.getSessionFile()!;
 		rmSync(sessionFile);
 		mkdirSync(sessionFile);
 
-		expect(() => manager.appendCustomEntry(__testUtils.FAST_ENTRY_TYPE, { modelId: "composer-2", fast: false })).toThrow();
+		expect(() => manager.appendCustomEntry(__testUtils.FAST_ENTRY_TYPE, { modelId: "composer-2", fast: false })).not.toThrow();
 		expect(manager.getBranch()).toEqual(expect.arrayContaining([
 			expect.objectContaining({
 				type: "custom",

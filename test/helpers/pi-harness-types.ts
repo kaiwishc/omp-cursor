@@ -1,5 +1,5 @@
 import type { MockedFunction } from "vitest";
-import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
+import type { ImageContent, TextContent } from "@oh-my-pi/pi-ai"
 import type {
 	ExtensionAPI,
 	ExtensionCommandContext,
@@ -11,38 +11,44 @@ import type {
 	SessionBeforeTreeEvent,
 	SessionBeforeCompactEvent,
 	SessionCompactEvent,
-	SessionInfoChangedEvent,
 	SessionShutdownEvent,
 	SessionStartEvent,
 	SessionTreeEvent,
 	ToolCallEvent,
 	ToolCallEventResult,
-	ToolDefinition,
 	ToolInfo,
 	ToolResultEvent,
 	TurnEndEvent,
 	TurnStartEvent,
-} from "@earendil-works/pi-coding-agent";
-import type { TSchema } from "typebox";
+} from "@oh-my-pi/pi-coding-agent";
+import type { TSchema } from "@oh-my-pi/omptype/typebox";
 
-export type RegisteredTool = ToolDefinition<TSchema, unknown, unknown>;
+export type RegisteredTool = import("@oh-my-pi/pi-coding-agent").ToolDefinition;
 
-export type ExtensionContextOverrides = Omit<Partial<ExtensionContext>, "sessionManager" | "ui"> & {
+type HarnessBeforeAgentStartEvent = BeforeAgentStartEvent;
+type HarnessSessionStartEvent = SessionStartEvent & { reason?: string };
+type HarnessSessionShutdownEvent = SessionShutdownEvent & { reason?: string };
+type HarnessSessionCompactEvent = SessionCompactEvent & { reason?: string };
+type HarnessSessionInfoChangedEvent = { type: "session_info_changed"; name?: string };
+
+export type ExtensionContextOverrides = {
+	cwd?: string;
+	model?: ExtensionContext["model"];
+	hasUI?: boolean;
 	sessionManager?: Partial<ExtensionContext["sessionManager"]>;
 	ui?: Partial<ExtensionContext["ui"]>;
+	[key: string]: unknown;
 };
 
-export type ExtensionCommandContextOverrides = Omit<
-	Partial<ExtensionCommandContext>,
-	"sessionManager" | "ui"
-> & {
-	sessionManager?: Partial<ExtensionCommandContext["sessionManager"]>;
-	ui?: Partial<ExtensionCommandContext["ui"]>;
-};
+export type ExtensionCommandContextOverrides = ExtensionContextOverrides | ExtensionCommandContext;
 
 export type RegisteredCommandOptions = Omit<RegisteredCommand, "name" | "sourceInfo">;
 
-export type HarnessOn = ExtensionAPI["on"];
+export type HarnessOn = ExtensionAPI["on"] & {
+	(event: "session_info_changed", handler: (event: HarnessSessionInfoChangedEvent, ctx: ExtensionContext) => unknown): void;
+	(event: "model_select", handler: (event: HarnessModelSelectEvent, ctx: ExtensionContext) => unknown): void;
+	(event: "tool_call", handler: (event: ToolCallEvent, ctx: ExtensionContext) => unknown): void;
+};
 
 export type HarnessEventName =
 	| "session_start"
@@ -68,25 +74,25 @@ export type HarnessModelSelectEvent = {
 };
 
 export type HarnessEventMap = {
-	session_start: SessionStartEvent;
-	session_info_changed: SessionInfoChangedEvent;
+	session_start: HarnessSessionStartEvent;
+	session_info_changed: HarnessSessionInfoChangedEvent;
 	model_select: HarnessModelSelectEvent;
-	before_agent_start: BeforeAgentStartEvent;
+	before_agent_start: HarnessBeforeAgentStartEvent;
 	turn_start: TurnStartEvent;
 	turn_end: TurnEndEvent;
-	session_shutdown: SessionShutdownEvent;
+	session_shutdown: HarnessSessionShutdownEvent;
 	session_before_compact: SessionBeforeCompactEvent;
-	session_compact: SessionCompactEvent;
+	session_compact: HarnessSessionCompactEvent;
 	session_tree: SessionTreeEvent;
 	session_before_tree: SessionBeforeTreeEvent;
 	tool_call: ToolCallEvent;
 	tool_result: ToolResultEvent;
 };
 
-/** Combined invoke result for before_agent_start (matches installed pi ExtensionRunner). */
+/** Combined invoke result for before_agent_start in OMP. */
 export type HarnessBeforeAgentStartCombinedResult = {
 	messages?: NonNullable<BeforeAgentStartEventResult["message"]>[];
-	systemPrompt?: string;
+	systemPrompt?: string[];
 };
 
 /** Combined invoke result for tool_result (matches installed pi ExtensionRunner.emitToolResult). */
@@ -148,7 +154,7 @@ export interface EventHarness {
 	) => Promise<HarnessEventInvokeResult<E>>;
 	runSessionStart: (
 		ctxOverrides?: ExtensionContextOverrides,
-		eventOverrides?: Partial<SessionStartEvent>,
+		eventOverrides?: Partial<HarnessEventMap["session_start"]>,
 	) => Promise<void>;
 	runModelSelect: (
 		model: NonNullable<ExtensionContext["model"]>,

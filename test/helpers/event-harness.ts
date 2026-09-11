@@ -11,7 +11,7 @@ import type {
 	ToolCallEventResult,
 	ToolResultEvent,
 	TurnEndEvent,
-} from "@earendil-works/pi-coding-agent";
+} from "@oh-my-pi/pi-coding-agent"
 import { createDefaultSystemPromptOptions, createExtensionTestContext, makeAssistantMessage } from "./context-fixtures.js";
 import type {
 	EventHarness,
@@ -35,7 +35,7 @@ type HarnessStoredHandler =
 
 function createBeforeAgentStartContext(
 	baseCtx: ExtensionContext,
-	getSystemPrompt: () => string,
+	getSystemPrompt: () => string[],
 ): ExtensionContext {
 	return {
 		...baseCtx,
@@ -44,11 +44,11 @@ function createBeforeAgentStartContext(
 }
 
 async function invokeBeforeAgentStartHandlers(
-	payload: BeforeAgentStartEvent,
+	payload: HarnessEventMap["before_agent_start"],
 	ctx: ExtensionContext,
 	handlers: readonly HarnessStoredHandler[],
 ): Promise<HarnessBeforeAgentStartCombinedResult | undefined> {
-	let currentSystemPrompt = payload.systemPrompt;
+	let currentSystemPrompt = Array.isArray(payload.systemPrompt) ? payload.systemPrompt : [payload.systemPrompt];
 	const messages: NonNullable<BeforeAgentStartEventResult["message"]>[] = [];
 	let systemPromptModified = false;
 	for (const handler of handlers) {
@@ -141,7 +141,7 @@ function createHarnessEventApi(): EventHarness {
 	const on = vi.fn(((event: HarnessEventName, handler: HarnessStoredHandler) => {
 		const existing = handlers.get(event) ?? [];
 		handlers.set(event, [...existing, handler]);
-	}) as HarnessOn);
+	}) as unknown as HarnessOn);
 
 	const invokeEventWithContext = async <E extends HarnessEventName>(
 		event: E,
@@ -207,7 +207,7 @@ function createHarnessEventApi(): EventHarness {
 	): Promise<void> => {
 		await invokeEvent(
 			"session_start",
-			{ type: "session_start", reason: "startup", ...eventOverrides },
+			{ type: "session_start", ...eventOverrides },
 			ctxOverrides,
 		);
 	};
@@ -232,9 +232,8 @@ function createHarnessEventApi(): EventHarness {
 			{
 				type: "before_agent_start",
 				prompt: "start",
-				systemPrompt: "",
-				systemPromptOptions: createDefaultSystemPromptOptions(ctx.cwd),
-			} satisfies BeforeAgentStartEvent,
+				systemPrompt: [""],
+			},
 			ctx,
 		);
 	};
@@ -266,7 +265,7 @@ function createHarnessEventApi(): EventHarness {
 	): Promise<void> => {
 		await invokeEvent(
 			"session_shutdown",
-			{ type: "session_shutdown", reason: "quit", ...eventOverrides },
+			{ type: "session_shutdown", ...eventOverrides },
 			ctxOverrides,
 		);
 	};
@@ -279,12 +278,11 @@ function createHarnessEventApi(): EventHarness {
 			"session_before_compact",
 			{
 				type: "session_before_compact",
-				reason: "manual",
-				willRetry: false,
 				preparation: {
 					firstKeptEntryId: "entry-1",
 					messagesToSummarize: [],
 					turnPrefixMessages: [],
+					recentMessages: [],
 					isSplitTurn: false,
 					tokensBefore: 0,
 					previousSummary: undefined,
@@ -307,8 +305,6 @@ function createHarnessEventApi(): EventHarness {
 			"session_compact",
 			{
 				type: "session_compact",
-				reason: "manual",
-				willRetry: false,
 				compactionEntry: {
 					type: "compaction",
 					id: "compaction-1",

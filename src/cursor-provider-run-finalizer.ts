@@ -1,4 +1,5 @@
-import type { AssistantMessage, AssistantMessageEventStream, Context } from "@earendil-works/pi-ai";
+import type { AssistantMessage, AssistantMessageEventStream, Context } from "@oh-my-pi/pi-ai"
+import { resolveCursorApiKey } from "./cursor-api-key.js";
 import { cursorLiveRuns } from "./cursor-provider-live-run-drain.js";
 import {
 	classifyCursorRunEmission,
@@ -16,7 +17,9 @@ import {
 	buildIncompleteCursorToolRunOutcome,
 	type IncompleteCursorToolRunOutcomeInput,
 } from "./cursor-incomplete-tool-visibility.js";
-import type { installCursorSdkProcessErrorGuard } from "./cursor-sdk-process-error-guard.js";
+import { CURSOR_PROVIDER } from "./cursor-model.js";
+import { installCursorSdkProcessErrorGuard } from "./cursor-sdk-process-error-guard.js";
+import { normalizeCursorOverflowErrorMessage } from "./cursor-provider-overflow.js";
 import type { CursorSdkEventDebugSink } from "./cursor-sdk-event-debug.js";
 import { awaitFinalizeCursorRunOutcome } from "./cursor-provider-turn-finalize.js";
 import type {
@@ -119,7 +122,7 @@ export class CursorRunFinalizer {
 			runResultFallback: run.result,
 			runErrorFallback: run.error,
 			resolvedApiKey: this.params.resolvedApiKey(),
-			optionsApiKey: runnerParams.options?.apiKey,
+			optionsApiKey: resolveCursorApiKey(runnerParams.options?.apiKey),
 			sdkEventDebug,
 			cacheContextWindow: true,
 			contextWindowAgentId: liveRun.agent.agentId,
@@ -132,7 +135,7 @@ export class CursorRunFinalizer {
 				if (!liveRun.disposed) {
 					cursorLiveRuns.markError(
 						liveRun,
-						sanitizeCursorProviderError(error, this.params.resolvedApiKey() ?? runnerParams.options?.apiKey, "local"),
+						sanitizeCursorProviderError(error, this.params.resolvedApiKey() ?? resolveCursorApiKey(runnerParams.options?.apiKey), "local"),
 					);
 				}
 				this.safeCleanup(() => sdkEventDebug?.recordWaitResult({ status: "error", error: String(error) }));
@@ -241,7 +244,7 @@ export class CursorRunFinalizer {
 				"error",
 				sanitizeCursorProviderError(
 					error,
-					this.params.resolvedApiKey() ?? this.params.runnerParams.options?.apiKey,
+					this.params.resolvedApiKey() ?? resolveCursorApiKey(this.params.runnerParams.options?.apiKey),
 					prepared?.runtimeTarget ?? this.params.runtimeTarget(),
 				),
 			);
@@ -250,7 +253,10 @@ export class CursorRunFinalizer {
 
 	private pushTerminalError(partial: AssistantMessage, reason: "error" | "aborted", message: string): void {
 		partial.stopReason = reason;
-		partial.errorMessage = message;
+		const normalized = reason === "error" && partial.provider === CURSOR_PROVIDER
+			? normalizeCursorOverflowErrorMessage(message)
+			: undefined;
+		partial.errorMessage = normalized ?? message;
 		this.params.runnerParams.stream.push({ type: "error", reason, error: partial });
 	}
 

@@ -21,17 +21,17 @@ describe("formatCursorToolTranscript read and shell", () => {
 		expect(isExcludedFromCursorBridgeExposure("write")).toBe(false);
 	});
 
-	it("formats Cursor read results as a pi-like read transcript", () => {
+	it("formats Cursor read results as an OMP-like read transcript", () => {
 		const transcript = formatCursorToolTranscript({
 			name: "read",
 			args: { path: "README.md" },
 			result: {
 				status: "success",
-				value: { content: "# pi-cursor-sdk\n\nA pi provider extension", totalLines: 3, fileSize: 42 },
+				value: { content: "# omp-cursor\n\nAn OMP provider extension", totalLines: 3, fileSize: 43 },
 			},
 		});
 
-		expect(transcript).toBe("read README.md\n\n# pi-cursor-sdk\n\nA pi provider extension\n");
+		expect(transcript).toBe("read README.md\n\n# omp-cursor\n\nAn OMP provider extension\n");
 	});
 
 	it("formats Cursor createPlan args as visible plan text", () => {
@@ -170,7 +170,7 @@ describe("formatCursorToolTranscript read and shell", () => {
 		expect(transcript).not.toContain("/repo/README.md");
 	});
 
-	it("formats Cursor shell results as a pi-like bash transcript", () => {
+	it("formats Cursor shell results as an OMP-like bash transcript", () => {
 		const transcript = formatCursorToolTranscript({
 			name: "shell",
 			args: { command: "date" },

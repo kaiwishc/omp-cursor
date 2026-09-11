@@ -4,7 +4,7 @@ import { suppressCursorSessionAgentResumeHandlePersist } from "./cursor-session-
 import { getCursorSessionScopeKey } from "./cursor-session-scope.js";
 
 /**
- * Prepare the pooled Cursor session agent for pi compaction summarization.
+ * Prepare the pooled Cursor session agent for OMP compaction summarization.
  * Releases any scoped live-run drain state still tied to the pooled agent, then
  * disposes the pool entry so summarization acquires a clean SDK agent.
  * Suppresses local-resume handle persist so the summarizer send cannot leak

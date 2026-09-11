@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent"
 import { classifyCursorConnectError, isCursorSdkAbortConnectError, isCursorSdkConnectionStalledError } from "./cursor-provider-errors.js";
 
 interface CursorSdkProcessErrorGuardToken {
@@ -77,7 +77,7 @@ function isCursorSdkAbortError(error: unknown): boolean {
 // a write is in flight surfaces a raw `write EPIPE` uncaught exception whose stack
 // is exactly the single async pipe-write completion frame. Installed 1.0.27 attaches
 // a no-op `error` listener before that write; keep this guard as defense in depth.
-// Pi's own piped-stdout or dead-terminal EPIPE normally surfaces through the
+// OMP's own piped-stdout or dead-terminal EPIPE normally surfaces through the
 // synchronous write-dispatch path with multiple frames (afterWriteDispatched /
 // Socket._writeGeneric) and must stay fatal per Unix convention, so anything beyond
 // this one-frame contract is rejected.

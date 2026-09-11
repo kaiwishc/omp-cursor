@@ -1,12 +1,16 @@
 import { createHash } from "node:crypto";
-import type { Context, ToolResultMessage } from "@earendil-works/pi-ai";
+import type { Context, ToolResultMessage } from "@oh-my-pi/pi-ai"
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { buildCursorPiBridgeMcpToolDescription, CURSOR_PI_BRIDGE_MCP_TOOL_PREFIX } from "./cursor-bridge-contract.js";
 import type { CursorPiBridgeToolDefinition, CursorPiMcpInputSchema } from "./cursor-pi-tool-bridge-types.js";
 import { asRecord, stringifyUnknown } from "./cursor-record-utils.js";
 
 export function normalizeMcpInputSchema(schema: unknown): CursorPiMcpInputSchema {
-	const record = asRecord(schema);
+	const candidate =
+		typeof schema === "function" && "toJsonSchema" in schema && typeof schema.toJsonSchema === "function"
+			? schema.toJsonSchema()
+			: schema;
+	const record = asRecord(candidate);
 	if (record?.type === "object") return record as CursorPiMcpInputSchema;
 	return { type: "object", properties: {} };
 }

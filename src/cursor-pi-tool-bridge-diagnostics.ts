@@ -5,7 +5,7 @@ import type { CursorSdkEventDebugRecorder } from "./cursor-sdk-event-debug.js";
 
 export const CURSOR_PI_TOOL_BRIDGE_DEBUG_ENV = "PI_CURSOR_PI_TOOL_BRIDGE_DEBUG";
 export const CURSOR_PI_TOOL_BRIDGE_DEBUG_FILE_ENV = "PI_CURSOR_PI_TOOL_BRIDGE_DEBUG_FILE";
-export const CURSOR_PI_TOOL_BRIDGE_DIAGNOSTIC_PREFIX = "[pi-cursor-sdk:bridge]";
+export const CURSOR_PI_TOOL_BRIDGE_DIAGNOSTIC_PREFIX = "[omp-cursor:bridge]";
 
 export function resolveCursorPiToolBridgeDebugEnabled(env: Record<string, string | undefined> = process.env): boolean {
 	return parseEnvBoolean(env[CURSOR_PI_TOOL_BRIDGE_DEBUG_ENV], false);
@@ -84,7 +84,7 @@ export type CursorPiToolBridgeDiagnosticEvent =
 	| CursorPiToolBridgeRequestRejectedDiagnostic;
 
 function assertNeverDiagnosticEvent(_event: never): never {
-	throw new Error("Unhandled Cursor pi tool bridge diagnostic event");
+	throw new Error("Unhandled Cursor OMP tool bridge diagnostic event");
 }
 
 export function serializeCursorPiToolBridgeDiagnostic(event: CursorPiToolBridgeDiagnosticEvent): Record<string, unknown> {

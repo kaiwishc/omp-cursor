@@ -12,7 +12,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, CONFIG_DIR_NAME } from "@oh-my-pi/pi-utils/dirs";
 import { parseOptionalEnvBoolean } from "./cursor-env-boolean.js";
 import { asRecord } from "./cursor-record-utils.js";
 
@@ -49,6 +49,8 @@ export interface CursorCloudEnvironmentConfig {
 }
 
 export interface CursorSdkConfig {
+	/** Optional user-scoped Cursor SDK API key; never loaded from project config. */
+	apiKey?: string;
 	fastDefaults?: Record<string, boolean>;
 	runtime?: CursorRuntime;
 	cloud?: {
@@ -237,10 +239,19 @@ function parseCloudEnvironment(value: unknown): CursorCloudEnvironmentConfig | u
 	return Object.keys(parsed).length > 0 ? parsed : undefined;
 }
 
-export function parseCursorSdkConfig(value: unknown): CursorSdkConfig | undefined {
+export interface ParseCursorSdkConfigOptions {
+	includeApiKey?: boolean;
+}
+
+export function parseCursorSdkConfig(value: unknown, options: ParseCursorSdkConfigOptions = {}): CursorSdkConfig | undefined {
 	const record = asRecord(value);
 	if (!record) return undefined;
 	const config: CursorSdkConfig = {};
+
+	if (options.includeApiKey) {
+		const apiKey = parseNonEmptyString(record.apiKey);
+		if (apiKey) config.apiKey = apiKey;
+	}
 
 	if (isCursorRuntime(record.runtime)) config.runtime = record.runtime;
 
@@ -288,7 +299,10 @@ export function parseCursorSdkConfig(value: unknown): CursorSdkConfig | undefine
 	return config;
 }
 
-export function getCursorSdkUserConfigPath(agentDir = getAgentDir()): string {
+export function getCursorSdkAgentDir(): string {
+	return process.env.PI_CODING_AGENT_DIR?.trim() || getAgentDir();
+}
+export function getCursorSdkUserConfigPath(agentDir = getCursorSdkAgentDir()): string {
 	return join(agentDir, CURSOR_SDK_CONFIG_FILE);
 }
 
@@ -296,10 +310,22 @@ export function getCursorSdkProjectConfigPath(cwd: string, configDirName = CONFI
 	return join(cwd, configDirName, CURSOR_SDK_CONFIG_FILE);
 }
 
-function readCursorSdkConfigFile(path: string): CursorSdkConfig {
+function canReadUserApiKey(path: string): boolean {
+	if (process.platform === "win32") return true;
+	try {
+		return (statSync(path).mode & 0o077) === 0;
+	} catch {
+		return false;
+	}
+}
+
+function readCursorSdkConfigFile(path: string, options: ParseCursorSdkConfigOptions = {}): CursorSdkConfig {
 	if (!existsSync(path)) return {};
 	try {
-		return parseCursorSdkConfig(JSON.parse(readFileSync(path, "utf-8"))) ?? {};
+		const parseOptions = options.includeApiKey && !canReadUserApiKey(path)
+			? { ...options, includeApiKey: false }
+			: options;
+		return parseCursorSdkConfig(JSON.parse(readFileSync(path, "utf-8")), parseOptions) ?? {};
 	} catch {
 		return {};
 	}
@@ -325,7 +351,7 @@ export function loadCursorSdkConfigForUpdate(path: string): Record<string, unkno
 }
 
 export function loadCursorSdkUserConfig(path = getCursorSdkUserConfigPath()): CursorSdkConfig {
-	return readCursorSdkConfigFile(path);
+	return readCursorSdkConfigFile(path, { includeApiKey: true });
 }
 
 export function loadCursorSdkProjectConfig(cwd: string, projectTrusted: boolean): CursorSdkConfig | undefined {
@@ -365,7 +391,7 @@ function acquireCursorSdkConfigLock(path: string): () => void {
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
 			if (Date.now() >= deadline) {
-				throw new Error(`Timed out waiting for Cursor SDK config lock ${lockPath}; remove it only if no pi process is writing this config`);
+				throw new Error(`Timed out waiting for Cursor SDK config lock ${lockPath}; remove it only if no OMP process is writing this config`);
 			}
 			sleepForConfigLock();
 		}
@@ -408,23 +434,28 @@ function withCursorSdkConfigLock<T>(path: string, operation: () => T): T {
 export function updateCursorSdkConfig(
 	path: string,
 	update: (current: Record<string, unknown>) => Record<string, unknown>,
-	options: { newFileMode?: number } = {},
+	options: { newFileMode?: number; forceMode?: number } = {},
 ): Record<string, unknown> {
 	return withCursorSdkConfigLock(path, () => {
 		const updated = update(loadCursorSdkConfigForUpdate(path));
-		const mode = existsSync(path) ? statSync(path).mode & 0o777 : options.newFileMode;
+		const mode = options.forceMode ?? (existsSync(path) ? statSync(path).mode & 0o777 : options.newFileMode);
 		replaceJsonFile(path, updated, mode);
 		return updated;
 	});
 }
 
 export function saveCursorSdkUserConfig(config: CursorSdkConfig, path = getCursorSdkUserConfigPath()): void {
-	updateCursorSdkConfig(path, () => ({ ...config }), { newFileMode: 0o600 });
+	const forceMode = config.apiKey?.trim() ? 0o600 : undefined;
+	updateCursorSdkConfig(path, () => ({ ...config }), {
+		newFileMode: 0o600,
+		...(forceMode === undefined ? {} : { forceMode }),
+	});
 }
 
-export function saveCursorSdkProjectConfig(cwd: string, config: CursorSdkConfig, configDirName = CONFIG_DIR_NAME): void {
+export function saveCursorSdkProjectConfig(cwd: string, config: Omit<CursorSdkConfig, "apiKey">, configDirName = CONFIG_DIR_NAME): void {
 	const path = getCursorSdkProjectConfigPath(cwd, configDirName);
-	updateCursorSdkConfig(path, () => ({ ...config }));
+	const { apiKey: _apiKey, ...projectConfig } = config as CursorSdkConfig;
+	updateCursorSdkConfig(path, () => ({ ...projectConfig }));
 }
 
 export function mergeCursorSdkConfig(base: CursorSdkConfig, patch: CursorSdkConfig): CursorSdkConfig {

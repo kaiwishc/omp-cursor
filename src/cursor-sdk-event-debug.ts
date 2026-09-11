@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-import type { AssistantMessageEventStream } from "@earendil-works/pi-ai";
+import type { AssistantMessageEventStream } from "@oh-my-pi/pi-ai"
 import type { AgentModeOption, InteractionUpdate } from "@cursor/sdk";
 import type { CursorPiToolBridgeDiagnosticEvent } from "./cursor-pi-tool-bridge-diagnostics.js";
 import { serializeCursorPiToolBridgeDiagnostic } from "./cursor-pi-tool-bridge-diagnostics.js";
@@ -23,6 +23,7 @@ import {
 	resetCursorSdkEventDebugSessionStateForTests,
 	slugSessionKey,
 	updateCursorSdkEventDebugSessionManifest,
+	writePrivateDebugFile,
 	type CursorSdkEventDebugTurnAllocation,
 } from "./cursor-sdk-event-debug-session.js";
 
@@ -83,6 +84,11 @@ export interface CursorSdkEventDebugRunMeta {
 	requestId?: string;
 	agentId: string;
 	status: string;
+}
+
+function copyPrivateDebugFile(source: string, destination: string): void {
+	copyFileSync(source, destination);
+	if (process.platform !== "win32") chmodSync(destination, 0o600);
 }
 
 interface CursorSdkRunLike {
@@ -294,7 +300,7 @@ export class CursorSdkEventDebugSink {
 			],
 		};
 		this.clearKnownArtifactFiles();
-		writeFileSync(join(this.artifactDir, ARTIFACTS.metadata), `${JSON.stringify(this.metadata, null, 2)}\n`);
+		writePrivateDebugFile(join(this.artifactDir, ARTIFACTS.metadata), `${JSON.stringify(this.metadata, null, 2)}\n`);
 	}
 
 	recordProviderMeta(meta: Record<string, unknown>): void {
@@ -302,7 +308,7 @@ export class CursorSdkEventDebugSink {
 			...this.metadata,
 			providerMeta: meta,
 		};
-		writeFileSync(join(this.artifactDir, ARTIFACTS.metadata), `${JSON.stringify(this.metadata, null, 2)}\n`);
+		writePrivateDebugFile(join(this.artifactDir, ARTIFACTS.metadata), `${JSON.stringify(this.metadata, null, 2)}\n`);
 	}
 
 	recordSendMeta(meta: CursorSdkEventDebugSendMeta): void {
@@ -310,15 +316,15 @@ export class CursorSdkEventDebugSink {
 			...this.metadata,
 			send: meta,
 		};
-		writeFileSync(join(this.artifactDir, ARTIFACTS.metadata), `${JSON.stringify(this.metadata, null, 2)}\n`);
+		writePrivateDebugFile(join(this.artifactDir, ARTIFACTS.metadata), `${JSON.stringify(this.metadata, null, 2)}\n`);
 	}
 
 	recordSendPayload(payload: unknown): void {
-		writeFileSync(join(this.artifactDir, ARTIFACTS.sendPayload), `${JSON.stringify(payload, null, 2)}\n`);
+		writePrivateDebugFile(join(this.artifactDir, ARTIFACTS.sendPayload), `${JSON.stringify(payload, null, 2)}\n`);
 	}
 
 	recordContextSnapshot(context: unknown): void {
-		writeFileSync(join(this.artifactDir, ARTIFACTS.contextSnapshot), `${JSON.stringify(context, null, 2)}\n`);
+		writePrivateDebugFile(join(this.artifactDir, ARTIFACTS.contextSnapshot), `${JSON.stringify(context, null, 2)}\n`);
 	}
 
 	recordRunMeta(meta: CursorSdkEventDebugRunMeta): void {
@@ -326,7 +332,7 @@ export class CursorSdkEventDebugSink {
 			...this.metadata,
 			run: meta,
 		};
-		writeFileSync(join(this.artifactDir, ARTIFACTS.metadata), `${JSON.stringify(this.metadata, null, 2)}\n`);
+		writePrivateDebugFile(join(this.artifactDir, ARTIFACTS.metadata), `${JSON.stringify(this.metadata, null, 2)}\n`);
 	}
 
 	recordOnDelta(update: InteractionUpdate): void {
@@ -381,7 +387,7 @@ export class CursorSdkEventDebugSink {
 	}
 
 	recordFinalPartial(partial: unknown): void {
-		writeFileSync(join(this.artifactDir, ARTIFACTS.finalPartial), `${JSON.stringify(partial, null, 2)}\n`);
+		writePrivateDebugFile(join(this.artifactDir, ARTIFACTS.finalPartial), `${JSON.stringify(partial, null, 2)}\n`);
 		this.recordTimeline("finalPartial", "snapshot", partial);
 	}
 
@@ -425,13 +431,13 @@ export class CursorSdkEventDebugSink {
 		if (typeof sdkRun.conversation === "function" && sdkRun.supports?.("conversation")) {
 			try {
 				const conversation = await sdkRun.conversation();
-				writeFileSync(join(this.artifactDir, ARTIFACTS.conversation), `${JSON.stringify(conversation, null, 2)}\n`);
+				writePrivateDebugFile(join(this.artifactDir, ARTIFACTS.conversation), `${JSON.stringify(conversation, null, 2)}\n`);
 				this.recordProviderEvent("conversation_captured", { supported: true });
 			} catch (error) {
 				this.recordError("conversation", error);
 			}
 		} else {
-			writeFileSync(
+			writePrivateDebugFile(
 				join(this.artifactDir, ARTIFACTS.conversation),
 				`${JSON.stringify(
 					{
@@ -448,7 +454,7 @@ export class CursorSdkEventDebugSink {
 	recordWaitResult(result: unknown): void {
 		if (this.waitResultRecorded) return;
 		this.waitResultRecorded = true;
-		writeFileSync(join(this.artifactDir, ARTIFACTS.waitResult), `${JSON.stringify(result, null, 2)}\n`);
+		writePrivateDebugFile(join(this.artifactDir, ARTIFACTS.waitResult), `${JSON.stringify(result, null, 2)}\n`);
 	}
 
 	private capturePiSessionSnapshot(): { copied: boolean; sessionFile?: string; reason?: string } {
@@ -460,9 +466,9 @@ export class CursorSdkEventDebugSink {
 			return { copied: false, sessionFile, reason: "session file not found at debug finalization" };
 		}
 		try {
-			copyFileSync(sessionFile, join(this.artifactDir, ARTIFACTS.piSessionSnapshot));
+			copyPrivateDebugFile(sessionFile, join(this.artifactDir, ARTIFACTS.piSessionSnapshot));
 			if (this.sessionDir) {
-				copyFileSync(sessionFile, join(this.sessionDir, SESSION_PI_SESSION_SNAPSHOT));
+				copyPrivateDebugFile(sessionFile, join(this.sessionDir, SESSION_PI_SESSION_SNAPSHOT));
 			}
 			this.recordTimeline("piSession", "snapshot", { sessionFile, artifact: ARTIFACTS.piSessionSnapshot });
 			return { copied: true, sessionFile };
@@ -539,7 +545,7 @@ export class CursorSdkEventDebugSink {
 			truncatedJsonlFiles: [...this.truncatedJsonlFiles].sort(),
 		};
 		this.flushJsonlBuffers();
-		writeFileSync(join(this.artifactDir, ARTIFACTS.summary), `${JSON.stringify(summary, null, 2)}\n`);
+		writePrivateDebugFile(join(this.artifactDir, ARTIFACTS.summary), `${JSON.stringify(summary, null, 2)}\n`);
 		this.updateSessionManifest(summary);
 		if (resolveCursorSdkEventDebugStderrEnabled(this.env)) {
 			process.stderr.write(`${CURSOR_SDK_EVENT_DEBUG_LOG_PREFIX} ${JSON.stringify(summary)}\n`);
@@ -629,7 +635,7 @@ export class CursorSdkEventDebugSink {
 
 	private flushJsonlBuffers(): void {
 		for (const [fileName, records] of this.jsonlBuffers) {
-			writeFileSync(join(this.artifactDir, fileName), records.join(""));
+			writePrivateDebugFile(join(this.artifactDir, fileName), records.join(""));
 		}
 		this.jsonlBuffers.clear();
 		this.jsonlBufferBytes.clear();

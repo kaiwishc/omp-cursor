@@ -4,8 +4,10 @@ import type {
 	ModelParameterValue,
 	ModelSelection,
 } from "@cursor/sdk";
-import type { ProviderModelConfig } from "@earendil-works/pi-coding-agent";
-import type { ModelThinkingLevel, ThinkingLevelMap } from "@earendil-works/pi-ai";
+import type { ProviderModelConfig } from "@oh-my-pi/pi-coding-agent";
+import type { Effort } from "@oh-my-pi/pi-ai";
+type ModelThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+type ThinkingLevelMap = Record<ModelThinkingLevel, string | null>;
 import { getCursorModelSelectionIdentities } from "../shared/cursor-model-selection-identities.mjs";
 import { loadContextWindowCache } from "./context-window-cache.js";
 import { loadCursorSdk } from "./cursor-sdk-runtime.js";
@@ -22,9 +24,9 @@ const FALLBACK_CONTEXT_WINDOW = 128000;
 const FALLBACK_MAX_TOKENS = 16384;
 const ZERO_COST = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
 const TEXT_AND_IMAGE_INPUT: ProviderModelConfig["input"] = ["text", "image"];
-const AUTH_SETUP_HINT = "/login (Use an API key -> Cursor) or CURSOR_API_KEY; startup discovery does not parse Pi CLI arguments, and Cursor Agent CLI/Desktop login is not reused";
+const AUTH_SETUP_HINT = "CURSOR_API_KEY or apiKey in ~/.omp/agent/cursor-sdk.json; startup discovery does not parse OMP CLI arguments, and Cursor Agent CLI/Desktop login is not reused";
 const CATALOG_REFRESH_HINT =
-	"After adding auth to an already-started pi session, run /cursor-refresh-models to refresh the full live Cursor model catalog without restarting pi.";
+	"After configuring a key in an already-started OMP session, run /cursor-refresh-models to refresh the full live Cursor model catalog without restarting OMP.";
 
 export type CursorModelFallbackReason = "missing-api-key" | "discovery-failed" | "empty-model-list" | "cached-after-error";
 
@@ -240,12 +242,43 @@ function toMetadata(
 	};
 }
 
+function getDefaultThinkingLevel(metadata: CursorModelMetadata, efforts: readonly Effort[]): Effort | undefined {
+	const defaultValues = ["effort", "reasoning", "thinking"]
+		.map((parameter) => getParamValue(metadata.defaultParams, parameter)?.toLowerCase())
+		.filter((value): value is string => value !== undefined);
+	for (const level of efforts) {
+		const wireValue = metadata.thinkingLevelMap?.[level];
+		if (wireValue && defaultValues.includes(wireValue.toLowerCase())) return level;
+	}
+	return undefined;
+}
+
+
 function toModelConfig(metadata: CursorModelMetadata, name: string): ProviderModelConfig {
+	const thinkingLevels = ["minimal", "low", "medium", "high", "xhigh", "max"] as const;
+	const efforts: Effort[] = [];
+	for (const level of thinkingLevels) {
+		if (metadata.thinkingLevelMap?.[level] != null) efforts.push(level as Effort);
+	}
+	const effortMap: Partial<Record<Effort, string>> = {};
+	for (const level of efforts) {
+		const wireValue = metadata.thinkingLevelMap?.[level];
+		if (wireValue !== undefined && wireValue !== null) effortMap[level] = wireValue;
+	}
+	const defaultLevel = getDefaultThinkingLevel(metadata, efforts);
+	const thinking = efforts.length
+		? {
+				mode: "effort" as const,
+				efforts,
+				...(defaultLevel ? { defaultLevel } : {}),
+				effortMap,
+			}
+		: undefined;
 	return {
 		id: metadata.piModelId,
 		name,
 		reasoning: metadata.supportsReasoning,
-		...(metadata.thinkingLevelMap ? { thinkingLevelMap: metadata.thinkingLevelMap } : {}),
+		...(thinking ? { thinking } : {}),
 		input: [...TEXT_AND_IMAGE_INPUT],
 		cost: { ...ZERO_COST },
 		contextWindow: metadata.contextWindow,
@@ -373,7 +406,7 @@ export async function discoverModels(options: DiscoverModelsOptions = {}): Promi
 	if (!apiKey) {
 		return useFallbackModels(options, {
 			reason: "missing-api-key",
-			message: `Cursor model discovery needs an API key from ${AUTH_SETUP_HINT}. Using fallback Cursor models so /login and model selection still work; fallback models can run once auth exists. ${CATALOG_REFRESH_HINT}`,
+			message: `Cursor model discovery needs an API key from ${AUTH_SETUP_HINT}. Using fallback Cursor models so model selection still works; fallback models can run once a key exists. ${CATALOG_REFRESH_HINT}`,
 		});
 	}
 

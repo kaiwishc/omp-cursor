@@ -11,6 +11,7 @@ import {
 	emitCursorLiveTurn,
 } from "./cursor-provider-turn-emit.js";
 import { CursorRunFinalizer, type CursorLiveRunCompletion } from "./cursor-provider-run-finalizer.js";
+import { resolveCursorApiKey } from "./cursor-api-key.js";
 import {
 	prepareCursorProviderTurn,
 	requireCursorApiKey,
@@ -96,7 +97,7 @@ export class CursorProviderTurnRunner {
 			}
 			this.throwIfAborted();
 
-			this.resolvedApiKey = requireCursorApiKey(options);
+			this.resolvedApiKey = await requireCursorApiKey(options);
 			prepared = await prepareCursorProviderTurn({
 				params: this.params,
 				cwd,
@@ -142,7 +143,7 @@ export class CursorProviderTurnRunner {
 				runResultFallback: send.run.result,
 				runErrorFallback: send.run.error,
 				resolvedApiKey: this.resolvedApiKey,
-				optionsApiKey: options?.apiKey,
+				optionsApiKey: resolveCursorApiKey(options?.apiKey),
 				sdkEventDebug: this.sdkEventDebug,
 				contextWindowAgentId: prepared.contextWindowAgentId,
 			});

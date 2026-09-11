@@ -35,15 +35,15 @@ let sdkOperationsForTests: CursorSessionStoreSdkOperations | undefined;
 
 export function hashCursorSessionStoreScope(scopeKey: string): string {
 	return createHash("sha256")
-		.update("pi-cursor-sdk-session-store\0")
+		.update("omp-cursor-sdk-session-store\0")
 		.update(scopeKey)
 		.digest("hex")
 		.slice(0, 32);
 }
 
 export function buildCursorSessionStateRoot(defaultStateRoot: string, scopeKey: string, persistent: boolean): string {
-	const baseRoot = persistent ? defaultStateRoot : join(tmpdir(), `pi-cursor-sdk-${randomUUID()}`);
-	return join(baseRoot, "pi-sessions", hashCursorSessionStoreScope(scopeKey));
+	const baseRoot = persistent ? defaultStateRoot : join(tmpdir(), `omp-cursor-${randomUUID()}`);
+	return join(baseRoot, "omp-sessions", hashCursorSessionStoreScope(scopeKey));
 }
 
 async function getSdkOperations(): Promise<CursorSessionStoreSdkOperations> {

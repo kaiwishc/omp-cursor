@@ -61,10 +61,10 @@ describe("Cursor ripgrep path", () => {
 			// Nested only — no hoisted platform package beside @cursor/sdk.
 			const consumerRequire = createRequire(consumerModule);
 			expect(() => consumerRequire.resolve(`${platformPackage}/package.json`)).toThrow();
-			expect(consumerRequire.resolve("@cursor/sdk")).toBe(realpathSync(join(sdkDir, "index.js")));
+			expect(realpathSync(consumerRequire.resolve("@cursor/sdk"))).toBe(realpathSync(join(sdkDir, "index.js")));
 
 			const resolved = resolveBundledCursorRipgrepPath(pathToFileURL(consumerModule));
-			expect(resolved).toBe(realpathSync(nestedRg));
+			expect(realpathSync(resolved!)).toBe(realpathSync(nestedRg));
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
