@@ -27,7 +27,7 @@ Default behavior:
 
 - Cursor host tools handle files, shell, grep, and edits.
 - The OMP bridge is off by default. Set `PI_CURSOR_PI_TOOL_BRIDGE=1` to expose bridgeable active OMP tools.
-- When exposed, `pi__mcp` is preferred for MCP work and `pi__subagent` is preferred for delegation. Cursor-configured MCP and Cursor-native subagents are fallbacks when the matching OMP tool is not exposed or is unavailable.
+- When exposed, `pi__mcp` is preferred for MCP work and `pi__task` is preferred for delegation. Cursor-configured MCP and Cursor-native subagents are fallbacks when the matching OMP bridge tool is not exposed or is unavailable.
 - The OMP bridge exposes **active OMP tools** as `pi__*` MCP names when `PI_CURSOR_PI_TOOL_BRIDGE=1`.
 - Overlapping OMP builtins (`read`, `bash`, `write`, `edit`, `grep`, `find`, `ls`) are **hidden** from the bridge unless `PI_CURSOR_EXPOSE_BUILTIN_TOOLS=1`.
 
@@ -52,6 +52,15 @@ PI_CURSOR_PI_BRIDGE_CALL_TIMEOUT_MS=120000 omp --model cursor-sdk/grok-4.6
 # Disable bootstrap tool manifest
 PI_CURSOR_TOOL_MANIFEST=0 omp --model cursor-sdk/grok-4.6
 ```
+
+## Agent Hub visibility
+
+`task(agent="cursor")` keeps the OMP child session and its persisted transcript. Cursor Agent Hub children are internally headless `print` sessions, but `omp-cursor` enables the existing display-only replay wrappers for the persisted `cursor` agent child. This makes reported Cursor host tools, configured Cursor MCP completions, and `task` activity visible in the child transcript and Activity view without enabling the OMP bridge.
+
+- With the bridge disabled, Cursor host tools and configured Cursor MCP use the existing scrubbed replay path. Skill loading through Cursor's native file read is visible as a `read` call whose path includes `SKILL.md`.
+- With the bridge enabled, `pi__*` calls remain real OMP tool executions. They are persisted and displayed once through the normal OMP tool path, including `pi__cursor_activate_skill` and bridged MCP tools.
+- Ordinary `omp -p` main sessions remain text-first. `PI_CURSOR_NATIVE_TOOL_DISPLAY=0` and `PI_CURSOR_REGISTER_NATIVE_TOOLS=0` still opt out of replay.
+- Cursor SDK nested subagents are represented by the reported `Cursor subagent` activity and any SDK-provided `conversationSteps`; the SDK does not guarantee a complete live transcript for their internal tools.
 
 ## Runtime and transport policy
 

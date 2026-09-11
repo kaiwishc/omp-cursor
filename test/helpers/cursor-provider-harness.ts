@@ -258,7 +258,10 @@ export interface NativeToolDisplayTestPi {
 	runTurnStart: (ctxOverrides?: ExtensionContextOverrides) => Promise<void>;
 }
 
-export async function createNativeToolDisplayPiForTest(registeredTools: RegisteredTool[] = []): Promise<NativeToolDisplayTestPi> {
+export async function createNativeToolDisplayPiForTest(
+	registeredTools: RegisteredTool[] = [],
+	sessionContext: ExtensionContextOverrides = {},
+): Promise<NativeToolDisplayTestPi> {
 	const pi = createPiHarness({
 		initialTools: ["read", "bash", "grep", "find", "ls", "edit", "write", "cursor"].map((name) =>
 			createBuiltinToolInfo(name),
@@ -275,7 +278,7 @@ export async function createNativeToolDisplayPiForTest(registeredTools: Register
 		setActiveTools: pi.setActiveTools,
 	};
 	registerCursorNativeToolDisplay(nativePi);
-	await pi.runSessionStart({ hasUI: false });
+	await pi.runSessionStart({ hasUI: false, ...sessionContext });
 	return {
 		getActiveTools: () => pi.getActiveTools(),
 		setActiveTools: async (toolNames) => {

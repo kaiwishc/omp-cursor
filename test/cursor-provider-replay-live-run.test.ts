@@ -433,6 +433,41 @@ describe("streamCursor native replay live run", () => {
 		expect(done.reason).toBe("stop");
 		expect(done.message.usage).toMatchObject({ input: 1_000, output: 700, cacheRead: 30_000, cacheWrite: 0, totalTokens: 31_700 });
 	});
+	it("emits the OMP yield tool when a live Cursor subagent turn finishes", async () => {
+		process.env.PI_CURSOR_NATIVE_TOOL_DISPLAY = "1";
+		const registeredTools: RegisteredTool[] = [];
+		await registerNativeToolDisplayForTest(registeredTools);
+
+		const mockSend = vi.fn().mockImplementation(async (_msg: unknown, opts: { onDelta: CursorDeltaHandler }) => {
+			opts.onDelta({ update: { type: "text-delta", text: "Final answer." } });
+			return asMockCursorRun({
+				id: "run-yield",
+				agentId: "agent-yield",
+				status: "running",
+				wait: vi.fn().mockResolvedValue({ id: "run-yield", status: "finished", result: "Final answer." }),
+				cancel: vi.fn(),
+				supports: () => true,
+				unsupportedReason: () => undefined,
+			});
+		});
+		mockCreatedAgent({
+			agentId: "agent-yield",
+			send: mockSend,
+			[Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+		});
+
+		const context = makeContext();
+		context.tools = [{ name: "yield", description: "Return the completed subagent result.", parameters: Type.Object({ data: Type.String() }) }];
+		const events = await collectEvents(streamCursor(makeModel(), context, { apiKey: "test-key" }));
+		const done = getDoneEvent(events);
+
+		expect(done.reason).toBe("toolUse");
+		expect(done.message.content.at(-1)).toMatchObject({
+			type: "toolCall",
+			name: "yield",
+			arguments: { data: "Final answer." },
+		});
+	});
 
 	it("does not replay queued live-run tools that became inactive after the run started", async () => {
 		process.env.PI_CURSOR_NATIVE_TOOL_DISPLAY = "1";

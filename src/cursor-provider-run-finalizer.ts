@@ -1,6 +1,6 @@
 import type { AssistantMessage, AssistantMessageEventStream, Context } from "@oh-my-pi/pi-ai"
 import { resolveCursorApiKey } from "./cursor-api-key.js";
-import { cursorLiveRuns } from "./cursor-provider-live-run-drain.js";
+import { cursorLiveRuns, emitCursorOmpYieldTool } from "./cursor-provider-live-run-drain.js";
 import {
 	classifyCursorRunEmission,
 	getCursorRunAbortMessage,
@@ -42,23 +42,6 @@ export type CursorTurnTerminalEvent =
 			displayOnlyTraceBlock?: string;
 	  }
 	| { kind: "error"; prepared: CursorProviderTurnPrepareResult | undefined; error: unknown };
-
-
-function emitOmpYieldTool(stream: AssistantMessageEventStream, partial: AssistantMessage, finalText: string): void {
-	const contentIndex = partial.content.length;
-	const toolCall = {
-		type: "toolCall" as const,
-		id: `cursor-task-yield-${partial.timestamp}-${contentIndex}`,
-		name: "yield",
-		arguments: { data: finalText },
-	};
-	partial.content.push(toolCall);
-	stream.push({ type: "toolcall_start", contentIndex, partial });
-	stream.push({ type: "toolcall_delta", contentIndex, delta: JSON.stringify(toolCall.arguments), partial });
-	stream.push({ type: "toolcall_end", contentIndex, toolCall, partial });
-	partial.stopReason = "toolUse";
-	stream.push({ type: "done", reason: "toolUse", message: partial });
-}
 
 function applyLiveRunOutcome(
 	outcome: CursorRunOutcome,
@@ -212,7 +195,7 @@ export class CursorRunFinalizer {
 				if (prepared.meta.resumeNotice) emitDisplayOnlyTraceBlock(stream, partial, prepared.meta.resumeNotice);
 				if (displayOnlyTraceBlock) emitDisplayOnlyTraceBlock(stream, partial, displayOnlyTraceBlock);
 				if (context.tools?.some((tool) => tool.name === "yield") === true) {
-					emitOmpYieldTool(stream, partial, yieldText);
+					emitCursorOmpYieldTool(stream, partial, yieldText);
 				} else {
 					stream.push({ type: "done", reason: "stop", message: partial });
 				}

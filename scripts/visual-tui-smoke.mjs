@@ -43,6 +43,7 @@ Common options:
   --startup-ms N                Milliseconds to wait before pasting the prompt. Default: ${DEFAULT_STARTUP_MS}.
   --model MODEL                 Cursor model. Default: ${DEFAULT_MODEL}.
   --mode agent|plan             Cursor SDK mode. Default: ${DEFAULT_MODE}.
+  --no-title                    Disable OMP session title generation for this smoke.
   --session-dir PATH            OMP session directory. Default: <out-dir>/<label>.session.
   --width N                     PTY columns. Default: ${DEFAULT_WIDTH}.
   --height N                    PTY rows. Default: ${DEFAULT_HEIGHT}.
@@ -148,9 +149,9 @@ function parseArgs(argv) {
 			startupMs: DEFAULT_STARTUP_MS,
 			model: DEFAULT_MODEL,
 			mode: DEFAULT_MODE,
+			noTitle: false,
 			settingSources: DEFAULT_SETTING_SOURCES,
 			bridge: false,
-			exposeBuiltinTools: false,
 			leftoverPatterns: [],
 			width: DEFAULT_WIDTH,
 			height: DEFAULT_HEIGHT,
@@ -169,7 +170,7 @@ function parseArgs(argv) {
 			startupMs: { names: ["--startup-ms"], assign: (value) => parseInteger(value, "--startup-ms") },
 			model: { names: ["--model"] },
 			mode: { names: ["--mode"], assign: parseMode },
-			sessionDir: { names: ["--session-dir"], assign: (value) => resolve(value) },
+			noTitle: commonBooleanFlag("--no-title"),
 			width: { names: ["--width"], assign: (value) => parseInteger(value, "--width") },
 			height: { names: ["--height"], assign: (value) => parseInteger(value, "--height") },
 			historyLines: { names: ["--history-lines"], assign: (value) => parseInteger(value, "--history-lines") },
@@ -390,8 +391,9 @@ function buildLaunchPlan(options, commands, shell) {
 		"exec",
 		shellQuote(commands.omp),
 		"--auto-approve",
+		"--no-extensions",
+		...(options.noTitle ? ["--no-title"] : []),
 		"-e", shellQuote(options.ext),
-		"--cursor-no-fast",
 		"--cursor-mode", shellQuote(options.mode),
 		"--session-dir", shellQuote(options.sessionDir),
 		"--model", shellQuote(options.model),
@@ -469,10 +471,20 @@ function runVisualSmoke(options) {
 		try {
 			const paste = run(commands.tmux, ["paste-buffer", "-b", bufferName, "-t", sessionName]);
 			if (paste.status !== 0) throw new Error(`tmux paste-buffer failed: ${paste.stderr?.toString().trim() || paste.status}`);
-			// Give bracketed paste handling a moment to finish before submitting.
-			sleep(250);
-			const enter = run(commands.tmux, ["send-keys", "-t", sessionName, "Enter"]);
-			if (enter.status !== 0) throw new Error(`tmux send-keys failed: ${enter.stderr?.toString().trim() || enter.status}`);
+			// The editor ignores Enter while its startup gate keeps submission disabled.
+			const submitDeadline = Date.now() + 10_000;
+			let submitted = false;
+			while (!submitted && Date.now() < submitDeadline) {
+				const enter = run(commands.tmux, ["send-keys", "-t", sessionName, "Enter"]);
+				if (enter.status !== 0) throw new Error(`tmux send-keys failed: ${enter.stderr?.toString().trim() || enter.status}`);
+				sleep(250);
+				const pane = capturePane(commands.tmux, sessionName, ["-p"]);
+				const currentJsonl = findLatestJsonl(options.sessionDir, {
+					sinceMs: runStartedAtMs,
+					previousMtimes: jsonlMtimesBeforeRun,
+				});
+				submitted = /^\s*⎋\s+Working(?:…|\.{3})?(?:\s|$)/m.test(pane) || currentJsonl !== undefined;
+			}
 		} finally {
 			run(commands.tmux, ["delete-buffer", "-b", bufferName]);
 			bufferLoaded = false;

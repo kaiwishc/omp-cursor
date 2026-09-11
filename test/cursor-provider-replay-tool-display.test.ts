@@ -22,6 +22,7 @@ import {
 	createMockAgentPlatform,
 	registerBridgeForProviderTest,
 	registerNativeToolDisplayForTest,
+	createNativeToolDisplayPiForTest,
 	connectMcpClient,
 	createBuiltinToolInfo,
 	createTestToolInfo,
@@ -37,8 +38,8 @@ import {
 } from "./helpers/cursor-provider-harness.js";
 import { streamCursor, __testUtils as cursorProviderTestUtils } from "../src/cursor-provider.js";
 import { estimateCursorPromptMessageTokens } from "../src/context.js";
-import { __testUtils as nativeToolDisplayTestUtils } from "../src/cursor-native-tool-display-state.js";
 import type { Context } from "@oh-my-pi/pi-ai"
+import type { SessionInitEntry } from "@oh-my-pi/pi-coding-agent";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -139,12 +140,106 @@ it("replays Cursor grep activity through native grep display", async () => {
 		];
 		await collectEvents(streamCursor(makeModel(), replayContext, { apiKey: "test-key" }));
 	});
+	it("replays no-bridge Cursor skill file reads in Agent Hub subagent mode", async () => {
+		process.env.PI_CURSOR_PI_TOOL_BRIDGE = "0";
+		const registeredTools: RegisteredTool[] = [];
+		const sessionInit: SessionInitEntry = {
+			type: "session_init",
+			id: "init-1",
+			parentId: null,
+			timestamp: new Date().toISOString(),
+			systemPrompt: "Cursor subagent prompt",
+			task: "Use the global skill",
+			tools: ["read", "cursor"],
+			agent: "cursor",
+		};
+		await createNativeToolDisplayPiForTest(registeredTools, {
+			mode: "print",
+			hasUI: false,
+			sessionManager: { getEntries: vi.fn(() => [sessionInit]) },
+		});
 
-	it("replays Cursor web search MCP activity through neutral cursor activity cards", async () => {
+		let resolveRun: (result: { id: string; status: "finished"; result: string }) => void = () => {};
+		const runWait = vi.fn(
+			() =>
+				new Promise<{ id: string; status: "finished"; result: string }>((resolve) => {
+					resolveRun = resolve;
+				}),
+		);
+		const mockSend = vi.fn().mockImplementation(async (_msg: unknown, opts: { onDelta: CursorDeltaHandler }) => {
+			const toolCall = {
+				type: "read",
+				args: { path: "skills/global-skill/SKILL.md" },
+				result: { status: "success", value: { content: "# Global Skill\nFollow this skill." } },
+			};
+			opts.onDelta({ update: { type: "tool-call-started", toolCall, callId: "skill-read-1" } });
+			opts.onDelta({ update: { type: "tool-call-completed", toolCall, callId: "skill-read-1" } });
+			return asMockCursorRun({
+				id: "run-1",
+				agentId: "agent-1",
+				status: "running",
+				wait: runWait,
+				cancel: vi.fn(),
+				supports: () => true,
+				unsupportedReason: () => undefined,
+			});
+		});
+		mockCreatedAgent({
+			agentId: "agent-1",
+			send: mockSend,
+			[Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+		});
+
+		const firstEvents = await collectEvents(streamCursor(makeModel(), makeContext(), { apiKey: "test-key" }));
+		const firstDone = getDoneEvent(firstEvents);
+		const toolCall = firstDone.message.content.find(isToolCallBlock);
+
+		expect(firstDone.reason).toBe("toolUse");
+		expect(toolCall?.name).toBe("read");
+		expect(toolCall?.arguments).toMatchObject({ path: "skills/global-skill/SKILL.md" });
+
+		const readTool = registeredTools.find((tool) => tool.name === "read");
+		const toolResult = await readTool!.execute(toolCall!.id, toolCall!.arguments, undefined, undefined, createExtensionTestContext());
+		expect(textFromToolResultBlock(toolResult.content[0])).toContain("# Global Skill");
+
+		resolveRun({ id: "run-1", status: "finished", result: "Done." });
+		const replayContext = makeContext();
+		replayContext.messages = [
+			...replayContext.messages,
+			firstDone.message,
+			{
+				role: "toolResult",
+				toolCallId: toolCall!.id,
+				toolName: "read",
+				content: toolResult.content,
+				details: toolResult.details,
+				isError: false,
+				timestamp: 2,
+			},
+		];
+		await collectEvents(streamCursor(makeModel(), replayContext, { apiKey: "test-key" }));
+	});
+
+
+	it("replays Cursor web search MCP activity in Agent Hub subagent mode", async () => {
+		process.env.PI_CURSOR_PI_TOOL_BRIDGE = "0";
 		process.env.PI_CURSOR_NATIVE_TOOL_DISPLAY = "1";
 		const registeredTools: RegisteredTool[] = [];
-		await registerNativeToolDisplayForTest(registeredTools);
-
+		const sessionInit: SessionInitEntry = {
+			type: "session_init",
+			id: "init-mcp-1",
+			parentId: null,
+			timestamp: new Date().toISOString(),
+			systemPrompt: "Cursor subagent prompt",
+			task: "Search the web",
+			tools: ["cursor"],
+			agent: "cursor",
+		};
+		await createNativeToolDisplayPiForTest(registeredTools, {
+			mode: "print",
+			hasUI: false,
+			sessionManager: { getEntries: vi.fn(() => [sessionInit]) },
+		});
 		let resolveRun: (result: { id: string; status: "finished"; result: string }) => void = () => {};
 		const runWait = vi.fn(
 			() =>

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { SessionInitEntry } from "@oh-my-pi/pi-coding-agent";
 import { Type } from "@oh-my-pi/omptype/typebox";
 import {
 	createBuiltinToolInfo,
@@ -13,6 +14,7 @@ import {
 } from "./helpers/pi-harness.js";
 import { createExtensionPi, resetIndexExtensionTestState } from "./helpers/index-extension-test-kit.js";
 import { createRenderContext, createRenderOptions, createRenderTheme } from "./helpers/render-fixtures.js";
+import { isCursorNativeToolDisplayRuntimeEnabled } from "../src/cursor-native-tool-display-state.js";
 
 vi.mock("../src/model-discovery.js", () => ({
 	discoverModels: vi.fn(),
@@ -49,6 +51,45 @@ describe("extension native Cursor tool replay", () => {
 
 		expect(pi._tools.map((tool) => tool.name)).toEqual([CURSOR_ASK_QUESTION_TOOL_NAME, CURSOR_ACTIVATE_SKILL_TOOL_NAME]);
 		expect(canRenderCursorToolNatively("grep")).toBe(false);
+	});
+
+	it("enables native Cursor replay for Cursor Agent Hub subagents in print mode", async () => {
+		mockedDiscover.mockResolvedValueOnce([]);
+		const pi = createExtensionPi();
+		await extensionFactory(pi);
+		const sessionInit: SessionInitEntry = {
+			type: "session_init",
+			id: "init-1",
+			parentId: null,
+			timestamp: new Date().toISOString(),
+			systemPrompt: "Cursor subagent prompt",
+			task: "Inspect the repository",
+			tools: ["read", "cursor"],
+			agent: "cursor",
+		};
+
+		await pi.runSessionStart({
+			mode: "print",
+			hasUI: false,
+			sessionManager: { getEntries: vi.fn(() => [sessionInit]) },
+		});
+
+		expect(canRenderCursorToolNatively("read")).toBe(true);
+		expect(canRenderCursorToolNatively("cursor")).toBe(true);
+		expect(isCursorNativeToolDisplayRuntimeEnabled()).toBe(true);
+	});
+
+	it("keeps ordinary print-mode Cursor sessions text-first", async () => {
+		process.env.PI_CURSOR_NATIVE_TOOL_DISPLAY = "1";
+		mockedDiscover.mockResolvedValueOnce([]);
+		const pi = createExtensionPi();
+		await extensionFactory(pi);
+
+		await pi.runSessionStart({ mode: "print", hasUI: false });
+
+		expect(canRenderCursorToolNatively("read")).toBe(false);
+		expect(canRenderCursorToolNatively("cursor")).toBe(false);
+		expect(isCursorNativeToolDisplayRuntimeEnabled()).toBe(false);
 	});
 
 	it("registers native Cursor tool wrappers with the pi session cwd", async () => {

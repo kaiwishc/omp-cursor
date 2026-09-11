@@ -184,6 +184,7 @@ npm run smoke:visual -- "${VISUAL_ARGS[@]}" \
 ```
 
 By default, `npm run smoke:visual` writes `.ansi`, `.txt`, `.html`, `.png`, and `.jsonl.path` artifacts. If Playwright Chromium is unavailable in an agent-harness run, rerun with `--no-screenshot`, open the generated `.html` with `agent_browser`, save a PNG screenshot, and record that PNG path beside the runner artifacts. To visually audit bridge behavior or ambient Cursor settings, opt in with `--bridge`, `--bridge --expose-builtin-tools`, or `--setting-sources <value>` and label that evidence separately; do not count those opt-in runs as default native replay matrix proof.
+For worker/bridge probes that need to isolate provider behavior from OMP's automatic session-title request, pass `--no-title`; this keeps the default title path unchanged while making the smoke's provider lifecycle evidence attributable.
 
 Expected proof for each category is defined in [Cursor Native Tool Visual Audit Workflow](./cursor-native-tool-visual-audit.md). Do not mark a category passed because the prompt was sent. A category passes only when the PNG shows the expected card and the JSONL shows the expected completed `toolCall` / `toolResult` pair with the expected `isError` state.
 

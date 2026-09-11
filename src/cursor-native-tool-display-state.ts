@@ -26,8 +26,15 @@ export function isCursorNativeToolDisplayRequested(mode?: string): boolean {
 	return process.stdout.isTTY === true;
 }
 
-export function isCursorNativeToolRegistrationRequested(mode?: string): boolean {
-	return mode !== "print" && readBooleanEnv(NATIVE_CURSOR_TOOL_REGISTRATION_ENV) !== false && isCursorNativeToolDisplayRequested(mode);
+export function isCursorNativeToolRegistrationRequested(
+	mode?: string,
+	options: { cursorSubagent?: boolean } = {},
+): boolean {
+	const displayRequested =
+		options.cursorSubagent === true
+			? readBooleanEnv(NATIVE_CURSOR_TOOL_DISPLAY_ENV) !== false
+			: mode !== "print" && isCursorNativeToolDisplayRequested(mode);
+	return readBooleanEnv(NATIVE_CURSOR_TOOL_REGISTRATION_ENV) !== false && displayRequested;
 }
 
 export function setCursorNativeToolDisplayRuntimeRequested(requested: boolean): void {

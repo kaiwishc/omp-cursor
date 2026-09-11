@@ -160,6 +160,22 @@ describe("cursor pi tool bridge flags and snapshots", () => {
 		expect(pi.setActiveTools).not.toHaveBeenCalled();
 	});
 
+	it("maps the OMP task tool to its pi__task MCP name", () => {
+		const pi = createBridgePiHarness({
+			active: ["task"],
+			tools: [createToolInfo("task", "Delegate to an OMP task")],
+		});
+
+		const snapshot = buildCursorPiToolBridgeSnapshot(pi);
+
+		expect(snapshot.tools).toEqual([
+			expect.objectContaining({
+				piToolName: "task",
+				mcpToolName: "pi__task",
+			}),
+		]);
+	});
+
 	it("hides overlapping pi tool names by default while keeping non-overlapping tools", () => {
 		const tools = [
 			createToolInfo("read", "Replay-wrapped read tool"),

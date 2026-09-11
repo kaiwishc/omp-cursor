@@ -23,7 +23,7 @@ import { resetSessionCursorAgent } from "./cursor-session-agent.js";
 import { applyCursorUsage } from "./cursor-usage-accounting.js";
 import { CursorPartialContentEmitter } from "./cursor-partial-content-emitter.js";
 import { emitDisplayOnlyTraceBlock } from "./cursor-display-only-trace.js";
-import { trimCurrentTurnAlreadyEmittedCursorText } from "./cursor-run-final-text.js";
+import { getFinalAssistantText, trimCurrentTurnAlreadyEmittedCursorText } from "./cursor-run-final-text.js";
 import { formatCursorSdkAbortMessage, resolveCursorSdkAbortCause } from "./cursor-provider-errors.js";
 import { formatInactiveCursorReplayTrace } from "./cursor-native-replay-trace.js";
 import { partitionNativeToolsByActiveContext } from "./cursor-native-replay-routing.js";
@@ -99,6 +99,22 @@ async function emitTextDeltas(
 	}
 	return emitter.closeText();
 }
+export function emitCursorOmpYieldTool(stream: AssistantMessageEventStream, partial: AssistantMessage, finalText: string): void {
+	const contentIndex = partial.content.length;
+	const toolCall = {
+		type: "toolCall" as const,
+		id: `cursor-task-yield-${partial.timestamp}-${contentIndex}`,
+		name: "yield",
+		arguments: { data: finalText },
+	};
+	partial.content.push(toolCall);
+	stream.push({ type: "toolcall_start", contentIndex, partial });
+	stream.push({ type: "toolcall_delta", contentIndex, delta: JSON.stringify(toolCall.arguments), partial });
+	stream.push({ type: "toolcall_end", contentIndex, toolCall, partial });
+	partial.stopReason = "toolUse";
+	stream.push({ type: "done", reason: "toolUse", message: partial });
+}
+
 
 export async function settleCursorLiveToolBatch(run: CursorLiveRun): Promise<void> {
 	const eventType = cursorLiveRuns.peekEvent(run)?.type;
@@ -389,8 +405,13 @@ export async function drainCursorLiveRunTurn(
 					emitDisplayOnlyTraceBlock(stream, partial, run.resumeNotice);
 					run.resumeNotice = undefined;
 				}
-				partial.stopReason = "stop";
-				stream.push({ type: "done", reason: "stop", message: partial });
+				const yieldText = finalText || getFinalAssistantText(partial);
+				if (context.tools?.some((tool) => tool.name === "yield") === true) {
+					emitCursorOmpYieldTool(stream, partial, yieldText);
+				} else {
+					partial.stopReason = "stop";
+					stream.push({ type: "done", reason: "stop", message: partial });
+				}
 				await cursorLiveRuns.release(run);
 				outcome = "stop";
 				outcomeDetails = { finalTextLength: finalText.length };

@@ -1,6 +1,6 @@
 export const CURSOR_PI_BRIDGE_MCP_TOOL_PREFIX = "pi__";
 export const CURSOR_PI_BRIDGE_PREFERENCE_TEXT =
-	"When exposed, prefer pi__mcp for MCP work and pi__subagent for delegation; use Cursor-configured MCP or Cursor-native subagents only when the matching pi__ tool is not exposed or unavailable.";
+	"When exposed, prefer pi__mcp for MCP work and pi__task for delegation; use Cursor-configured MCP or Cursor-native subagents only when the matching pi__ tool is not exposed or unavailable.";
 
 const CURSOR_PI_BRIDGE_CONTRACT_LINES = [
 	"OMP bridge contract:",

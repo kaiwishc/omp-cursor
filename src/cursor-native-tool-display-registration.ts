@@ -37,9 +37,13 @@ function hasNonBuiltinTool(pi: Pick<ExtensionAPI, "getAllTools">, toolName: Nati
 	return existingTool !== undefined && existingTool.sourceInfo.source !== "builtin";
 }
 
-type NativeRegistrationContext = Pick<ExtensionContext, "mode" | "model"> & {
+type NativeRegistrationContext = Pick<ExtensionContext, "mode" | "model" | "sessionManager"> & {
 	ui: Pick<ExtensionContext["ui"], "notify">;
 };
+
+function isCursorAgentHubSubagent(ctx: NativeRegistrationContext): boolean {
+	return ctx.sessionManager.getEntries().some((entry) => entry.type === "session_init" && entry.agent === "cursor");
+}
 
 function registerNativeCursorToolsFromSet(
 	pi: CursorNativeToolRegistryApi,
@@ -116,7 +120,9 @@ function ensureNativeCursorToolsRegisteredForModel(pi: CursorNativeToolRegistryA
 }
 
 function ensureThenSyncNativeCursorToolsForModel(pi: CursorNativeToolRegistryApi, ctx: NativeRegistrationContext): void {
-	const requested = isCursorNativeToolRegistrationRequested(ctx.mode);
+	const requested = isCursorNativeToolRegistrationRequested(ctx.mode, {
+		cursorSubagent: isCursorAgentHubSubagent(ctx),
+	});
 	setCursorNativeToolDisplayRuntimeRequested(requested);
 	if (!requested) {
 		removeRegisteredNonCoreNativeCursorTools(pi);
@@ -131,5 +137,8 @@ export function registerCursorNativeToolDisplay(pi: CursorNativeToolDisplayExten
 		ensureThenSyncNativeCursorToolsForModel(pi, ctx);
 	});
 }
+export const __testUtils = {
+	isCursorAgentHubSubagent,
+};
 
 export { isNativeCursorToolName, isCursorNativeToolDisplayRequested };

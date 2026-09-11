@@ -155,6 +155,27 @@ describe("registerCursorSkillTool", () => {
 		expect(text).toContain("references/guide.md");
 	});
 
+	it("falls back to Cursor file-read skill loading when the OMP bridge is disabled", async () => {
+		process.env.PI_CURSOR_PI_TOOL_BRIDGE = "0";
+		const skill = makeSkill({ name: "global-skill", description: "Global skill", filePath: "/repo/global-skill/SKILL.md" });
+		const pi = createPiHarness({ activeTools: ["read"] });
+		setActiveSkills([skill]);
+		registerCursorSkillTool(pi);
+
+		const result = await pi.invokeEvent(
+			"before_agent_start",
+			{
+				type: "before_agent_start",
+				prompt: "hello",
+				systemPrompt: ["System prompt."],
+			} satisfies BeforeAgentStartEvent,
+			{ model: makeModel("composer-2.5"), cwd: "/repo" },
+		);
+
+		expect(result?.systemPrompt?.join("\n")).toContain("Cursor's file-read capability");
+		expect(pi._activeToolNames()).not.toContain(CURSOR_ACTIVATE_SKILL_TOOL_NAME);
+	});
+
 	it("keeps the activation tool exposed through Cursor turn_start after prompt rewrite", async () => {
 		const skill = makeSkill({ name: "global-skill", description: "Global skill", filePath: "/repo/global-skill/SKILL.md" });
 		const pi = createPiHarness({ activeTools: ["read"] });

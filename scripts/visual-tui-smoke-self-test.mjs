@@ -95,6 +95,7 @@ export function runVisualSmokeSelfTest(deps) {
 			assertSelfTest(plan.clearEnvNames.includes(name), `${name} must be cleared by default`);
 		}
 		assertSelfTest(plan.script.includes(shellQuote(fakePi)), "launch script must use resolved omp path");
+		assertSelfTest(plan.script.includes("--no-extensions"), "launch script must disable ambient extensions while retaining the explicit extension root");
 		assertSelfTest(!plan.script.includes(" exec omp "), "launch script must not use bare omp");
 		const hostileEnv = {
 			...process.env,
@@ -120,10 +121,11 @@ export function runVisualSmokeSelfTest(deps) {
 		}
 
 		const optInPlan = buildLaunchPlan(
-			{ ...baseOptions, settingSources: "all", bridge: true, exposeBuiltinTools: true, eventDebug: true },
+			{ ...baseOptions, noTitle: true, settingSources: "all", bridge: true, exposeBuiltinTools: true, eventDebug: true },
 			{ omp: fakePi, node: process.execPath, sealedPath: sealedHostilePath },
 			"/bin/sh",
 		);
+		assertSelfTest(optInPlan.script.includes("--no-title"), "no-title opt-in must reach the OMP launch command");
 		const optIns = envMap(optInPlan.envAssignments);
 		assertSelfTest(optIns.get("PI_CURSOR_SETTING_SOURCES") === "all", "setting source opt-in must be reflected");
 		assertSelfTest(optIns.get("PI_CURSOR_PI_TOOL_BRIDGE") === "1", "bridge opt-in must be reflected");
@@ -144,6 +146,7 @@ export function runVisualSmokeSelfTest(deps) {
 
 		const fakeTmux = join(binDir, "tmux");
 		const deleteBufferMarker = join(tempDir, "delete-buffer-called");
+		const sendKeysMarker = join(tempDir, "send-keys-called");
 		writeFileSync(
 			fakeTmux,
 			`#!/bin/sh\ncase "$1" in\n  -V) echo 'tmux fake'; exit 0 ;;\n  new-session) exit 0 ;;\n  load-buffer) cat >/dev/null; exit 0 ;;\n  paste-buffer) exit 77 ;;\n  delete-buffer) echo deleted > ${shellQuote(deleteBufferMarker)}; exit 0 ;;\n  kill-session) exit 0 ;;\n  *) echo "unexpected tmux command: $*" >&2; exit 64 ;;\nesac\n`,
@@ -182,9 +185,9 @@ case "$1" in
   new-session) exit 0 ;;
   load-buffer) cat >/dev/null; exit 0 ;;
   paste-buffer) exit 0 ;;
-  send-keys) exit 0 ;;
+  send-keys) echo sent >> ${shellQuote(sendKeysMarker)}; exit 0 ;;
   delete-buffer) exit 0 ;;
-  capture-pane) echo 'captured visual smoke output'; exit 0 ;;
+  capture-pane) printf '  ⎋ Working… 1s  > prompt\n'; exit 0 ;;
   kill-session) exit 0 ;;
   *) echo "unexpected tmux command: $*" >&2; exit 64 ;;
 esac
@@ -219,6 +222,10 @@ esac
 			const manifest = JSON.parse(readFileSync(noJsonlManifest, "utf8"));
 			assertSelfTest(manifest.failure?.message?.includes("no current-run persisted .jsonl"), "failure manifest should record the missing JSONL reason");
 			assertSelfTest(manifest.paths?.html?.endsWith("self-test-jsonl-missing.html"), "failure manifest should point at partial HTML evidence");
+			assertSelfTest(
+				existsSync(sendKeysMarker) && readFileSync(sendKeysMarker, "utf8").trim().split("\n").length === 1,
+				"working status should stop prompt submission retries after the first Enter",
+			);
 		} finally {
 			if (originalPath === undefined) delete process.env.PATH;
 			else process.env.PATH = originalPath;
