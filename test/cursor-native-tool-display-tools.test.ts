@@ -43,8 +43,8 @@ describe("wrapNativeCursorTool", () => {
 		replaySpy.mockRestore();
 	});
 
-	it("preserves built-in metadata inherited through native tool instances", () => {
-		for (const toolName of ["read", "edit"] as const) {
+	it("preserves metadata from OMP compatibility tool definitions", () => {
+		for (const toolName of ["read", "bash", "edit", "write", "grep", "find", "ls"] as const) {
 			const definition = createNativeCursorToolDefinition(toolName, process.cwd());
 			const wrapped = wrapNativeCursorTool(definition, () => definition);
 

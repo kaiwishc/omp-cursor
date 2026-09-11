@@ -1,10 +1,13 @@
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type {
-	ExtensionAPI,
-	ToolDefinition,
-} from "@oh-my-pi/pi-coding-agent";
-import { BUILTIN_TOOLS, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { toolRenderers } from "@oh-my-pi/pi-coding-agent/tools/renderers";
+import type { ExtensionAPI, ToolDefinition } from "@oh-my-pi/pi-coding-agent";
+import {
+	createBashToolDefinition,
+	createEditToolDefinition,
+	createFindToolDefinition,
+	createGrepToolDefinition,
+	createLsToolDefinition,
+	createReadToolDefinition,
+	createWriteToolDefinition,
+} from "@oh-my-pi/pi-coding-agent/extensibility/legacy-pi-coding-agent-shim";
 import { Text, type Component } from "@oh-my-pi/pi-tui";
 import { getCursorSessionCwd } from "./cursor-session-scope.js";
 import {
@@ -61,8 +64,9 @@ function renderReadReplayCall(
 ): Component {
 	const rendered = renderBase() ?? emptyText();
 	if ((args as Record<string, unknown>).localReadPreview !== true || options.expanded) return rendered;
-	const baseText = rendered.render(120).join("\n").trimEnd();
-	const labeled = `${baseText}${theme.fg("muted", " · local file preview")}`;
+	const rawPath = (args as Record<string, unknown>).path;
+	const readPath = typeof rawPath === "string" ? rawPath : "";
+	const labeled = `${theme.fg("toolTitle", theme.bold("Read:"))} ${theme.fg("muted", readPath)}${theme.fg("muted", " · local file preview")}`;
 	if (rendered instanceof Text) {
 		rendered.setText(labeled);
 		return rendered;
@@ -103,67 +107,30 @@ function renderWriteReplayResult(
 		: renderBase() ?? emptyText();
 }
 
-const FALLBACK_TOOL_SESSION_SETTINGS = Settings.isolated();
-
-function getToolSessionSettings(): typeof FALLBACK_TOOL_SESSION_SETTINGS {
-	try {
-		return Settings.instance;
-	} catch {
-		return FALLBACK_TOOL_SESSION_SETTINGS;
-	}
-}
-
-function createBuiltinDefinition(
-	cwd: string,
-	builtinName: "read" | "bash" | "edit" | "glob" | "grep" | "write",
-	exposedName: string,
-): AnyToolDefinition {
-	const session: ToolSession = {
-		cwd,
-		hasUI: false,
-		getSessionFile: () => null,
-		getSessionSpawns: () => null,
-		settings: getToolSessionSettings(),
-	};
-	const tool = BUILTIN_TOOLS[builtinName](session);
-	if (!tool || typeof tool === "object" && "then" in tool) {
-		throw new Error(`OMP built-in tool factory did not return a synchronous ${builtinName} tool`);
-	}
-	Object.defineProperty(tool, "name", { value: exposedName, configurable: true });
-	const renderer = toolRenderers[builtinName === "glob" ? "glob" : builtinName];
-	if (renderer) {
-		Object.defineProperties(tool, {
-			renderCall: { value: renderer.renderCall, configurable: true },
-			renderResult: { value: renderer.renderResult, configurable: true },
-		});
-	}
-	return tool as AnyToolDefinition;
-}
-
 const NATIVE_CURSOR_TOOL_STRATEGIES: Record<BuiltinNativeCursorToolName, NativeReplayStrategy> = {
 	read: {
-		createDefinition: (cwd) => createBuiltinDefinition(cwd, "read", "read"),
+		createDefinition: (cwd) => createReadToolDefinition(cwd),
 		renderReplayCall: renderReadReplayCall,
 		renderReplayResult: renderReadReplayResult,
 	},
-	bash: { createDefinition: (cwd) => createBuiltinDefinition(cwd, "bash", "bash") },
+	bash: { createDefinition: (cwd) => createBashToolDefinition(cwd) },
 	edit: {
-		createDefinition: (cwd) => createBuiltinDefinition(cwd, "edit", "edit"),
+		createDefinition: (cwd) => createEditToolDefinition(cwd),
 		missingReplayPolicy: "block-file-mutation",
 		renderReplayCall: (args, options, theme) =>
 			renderNativeLookingCursorFileMutationCall("edit", args as Record<string, unknown>, theme, options.isPartial),
 		renderReplayResult: renderEditReplayResult,
 	},
 	write: {
-		createDefinition: (cwd) => createBuiltinDefinition(cwd, "write", "write"),
+		createDefinition: (cwd) => createWriteToolDefinition(cwd),
 		missingReplayPolicy: "block-file-mutation",
 		renderReplayCall: (args, options, theme) =>
 			renderNativeLookingCursorFileMutationCall("write", args as Record<string, unknown>, theme, options.isPartial),
 		renderReplayResult: renderWriteReplayResult,
 	},
-	grep: { createDefinition: (cwd) => createBuiltinDefinition(cwd, "grep", "grep") },
-	find: { createDefinition: (cwd) => createBuiltinDefinition(cwd, "glob", "find") },
-	ls: { createDefinition: (cwd) => createBuiltinDefinition(cwd, "glob", "ls") },
+	grep: { createDefinition: (cwd) => createGrepToolDefinition(cwd) },
+	find: { createDefinition: (cwd) => createFindToolDefinition(cwd) },
+	ls: { createDefinition: (cwd) => createLsToolDefinition(cwd) },
 };
 
 function getNativeReplayStrategy(toolName: string): NativeReplayStrategy | undefined {

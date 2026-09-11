@@ -151,6 +151,11 @@ function sanitizeSystemPromptForCursor(systemPrompt: string): string {
 		/Guidelines:\n[\s\S]*?\n\nOMP documentation /g,
 		"Guidelines:\n- Be concise in your responses.\n- Show file paths clearly when working with files.\n\nOMP documentation ",
 	);
+	// Cursor has no OMP hidden yield tool; its final assistant text is wrapped by the provider finalizer.
+	sanitized = sanitized.replace(
+		/(^|\n)§ Completion\n(?=[\s\S]*\b(?:yield|terminal-yield)\b)[\s\S]*$/i,
+		"\n§ Completion\nContinue until the assignment is complete.\nReturn the final answer as normal assistant text. Do not call OMP-only completion or control tools, or write completion output to a virtual tool URL. The Cursor provider submits the completed run to the parent OMP task.\n\nGiving up is a last resort.",
+	);
 	// Keep the Agent Skills catalog. Cursor-specific skill activation wording is normalized
 	// by cursor-skill-tool.ts before this prompt reaches the Cursor SDK provider.
 	sanitized = sanitized.replace(/\n+Semantic code intelligence priority:[\s\S]*$/g, "");

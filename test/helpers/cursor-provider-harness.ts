@@ -1,4 +1,7 @@
-import { expect, vi } from "vitest";
+import { afterAll, expect, vi } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
@@ -356,10 +359,24 @@ export const cursorModelItems: ModelListItem[] = [
 				isDefault: true,
 			},
 		],
+
 	},
 ];
+let isolatedCursorAgentDir: string | undefined;
+
+afterAll(() => {
+	if (isolatedCursorAgentDir) {
+		rmSync(isolatedCursorAgentDir, { recursive: true, force: true });
+		isolatedCursorAgentDir = undefined;
+	}
+});
 
 export async function resetCursorProviderTestState(): Promise<void> {
+	if (isolatedCursorAgentDir) {
+		rmSync(isolatedCursorAgentDir, { recursive: true, force: true });
+	}
+	isolatedCursorAgentDir = mkdtempSync(join(tmpdir(), "omp-cursor-provider-agent-"));
+	process.env.PI_CODING_AGENT_DIR = isolatedCursorAgentDir;
 	vi.useRealTimers();
 	installCursorSessionStoreMock();
 	cloudLifecycleTestUtils.reset();

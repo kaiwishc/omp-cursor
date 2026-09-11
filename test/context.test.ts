@@ -91,6 +91,30 @@ describe("buildCursorPrompt", () => {
 		expect(result.text).toContain("private-skill");
 		expect(result.text).not.toContain("Semantic code intelligence priority");
 	});
+	it("replaces the OMP subagent yield protocol for Cursor", () => {
+		const ctx: Context = {
+			systemPrompt: [
+				[
+					"§ Completion",
+					"No TODO tracking, no progress updates. Report results with `yield`.",
+					"",
+					"Yield protocol:",
+					"- This is your only way to return a final result.",
+					"- Write the result to xd://yield.",
+					"",
+					"Giving up is a last resort.",
+				].join("\n"),
+			],
+			messages: [],
+		};
+
+		const result = buildCursorPrompt(ctx);
+
+		expect(result.text).toContain("Cursor provider submits the completed run to the parent OMP task.");
+		expect(result.text).not.toContain("This is your only way to return a final result.");
+		expect(result.text).not.toContain("Write the result to xd://yield.");
+		expect(result.text).toContain("Giving up is a last resort.");
+	});
 
 	it("formats user and assistant messages", () => {
 		const ctx: Context = {
